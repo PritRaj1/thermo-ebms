@@ -7,10 +7,15 @@ requires-python = ">=3.12"
 dependencies = [
     "flax>=0.12.7",
     "grain>=0.2.17",
+    "importlib-resources>=7.1.0",
     "jax[cuda12]>=0.10.1",
     "ml-collections>=1.1.0",
+    "numpy>=2.4.6",
+    "opencv-python-headless>=4.13.0.92",
     "optax>=0.2.8",
     "pyyaml>=6.0.3",
+    "tensorflow>=2.21.0",
+    "tensorflow-datasets>=4.9.10",
 ]
 
 [project.optional-dependencies]
