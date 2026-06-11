@@ -44,7 +44,7 @@ class latentEBM(nnx.Module):
 		eta = self.ula_step_prior
 		z = z + eta * score + jnp.sqrt(2 * eta) * noise
 
-		return (z, key), None
+		return (z, key), z
 
 	def ula_post_step(self, carry, inputs):
 		(z, key), (x, t) = carry
@@ -57,7 +57,7 @@ class latentEBM(nnx.Module):
 		eta = self.ula_step_post
 		z = z + eta * score + jnp.sqrt(2 * eta) * noise
 
-		return (z, key), None
+		return (z, key), z
 
 	def ula_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
