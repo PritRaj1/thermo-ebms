@@ -1,3 +1,17 @@
 dataset:
   name: "cifar10"
   batch_size: 128
+
+ebm:
+  z_dim = 80
+  energy_dim = 100
+  leakyrelu_leak = 0.1
+  p0_stddev = 1.0
+
+gen:
+  z_dim = 80
+  energy_dim = 100
+  img_channels = 3
+  image_res = 32
+  leakyrelu_leak = 0.2
+  gaussian_stddev = 0.3
