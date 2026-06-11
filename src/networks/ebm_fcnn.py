@@ -4,8 +4,12 @@ from ml_collections import ConfigDict
 
 
 class EBM(nnx.Module):
-	def __init__(self, ebm_config: ConfigDict, rngs: nnx.Rngs):
-		in_dim = ebm_config.z_dim
+	def __init__(
+		self,
+		ebm_config: ConfigDict,
+		z_dim: int,
+		rngs: nnx.Rngs,
+	):
 		hidden_dim = ebm_config.energy_dim
 		leak_coef = ebm_config.leakyrelu_leak
 		self.sigma = ebm_config.p0_stddev
@@ -13,16 +17,17 @@ class EBM(nnx.Module):
 		act = lambda x: nnx.leaky_relu(x, negative_slope=leak_coef)
 
 		self.f = nnx.Sequential(
-			nnx.Linear(in_dim, hidden_dim),
+			nnx.Linear(z_dim, hidden_dim, rngs=rngs),
 			act,
-			nnx.Linear(hidden_dim, hidden_dim),
+			nnx.Linear(hidden_dim, hidden_dim, rngs=rngs),
 			act,
-			nnx.Linear(hidden_dim, out_dim),
+			nnx.Linear(hidden_dim, z_dim, rngs=rngs),
 		)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
 		return self.f(z)
 
 	def logprior(self, z: jax.Array) -> jax.Array:
-		"""log(p_α(z)) ∝ f(z) - 0.5 * (z^2) / (σ^2)"""
-		return self(z) - 0.5 * (z**2) / (self.sigma**2)
+		"""log(p_α(z)) ∝ f(z) - 0.5 * ||z||^2 / σ^2"""
+		lp = self(z) - 0.5 * (z**2) / (self.sigma**2)
+		return lp.sum()
