@@ -43,6 +43,7 @@ class latentEBM(nnx.Module):
 
 	def sample_prior(self, key: jax.Array) -> jax.Array:
 		z0, key = self.ula_init(key, 1)
+		self.eval()
 
 		(z, _), _ = jax.lax.scan(
 			self.ula_prior_step,

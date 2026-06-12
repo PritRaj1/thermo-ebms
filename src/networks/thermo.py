@@ -35,6 +35,7 @@ class thermoEBM(latentEBM):
 
 	def _sample_temp(self, key, x, t):
 		z0, key = self.ula_init(key, x.shape[0])
+		self.eval()
 
 		def _ula(carry, _):
 			z, key = carry

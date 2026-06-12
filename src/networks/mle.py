@@ -17,6 +17,7 @@ class mleEBM(latentEBM):
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		z0, key = self.ula_init(key, x.shape[0])
+		self.eval()
 
 		def step(carry, _):
 			z, key = carry
