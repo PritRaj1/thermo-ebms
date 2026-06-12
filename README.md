@@ -1,16 +1,7 @@
 # JAX-Latent-Space-EBM-Prior
-A JAX implementation of the Learning Latent Space Energy-Based Prior Model, presented by [Pang et al. (2020)](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf). Thermodynamic Integration, presented by [Calderhead and Girolami (2009)](https://www.sciencedirect.com/science/article/pii/S0167947309002722),
- has also been implemented as a means of exerting control over learning gradient variance.
+Learning Latent Space Energy-Based Prior Model, presented by [Pang et al. (2020)](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf). Thermodynamic Integration, presented by [Calderhead and Girolami (2009)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), implemented as a means of exerting control over learning gradient variance. Implementation in jax/grain/orbax.
 
-The [report](https://github.com/PritRaj1/JAX-ThermoEBM/blob/main/Shaping_the_Learning_Gradient_Distribution_with_Thermodynamic_Integration.pdf) is more informative than the readme and should be referred to for details regarding:
-
-- The latent space energy-based prior model
-- Thermodynamic Integration
-- How image metrics were collected in an unbiased manner, (linear regression was used to extrapolate Kernel Inception Distance to an infinitely-sized sample set)
-- The effect of other Thermodynamic Integration parameters on image fidelity
-- Computational cost in terms of time and FLOPS
-
-Thanks!
+MEng thesis provided in [report.pdf](https://github.com/PritRaj1/JAX-ThermoEBM/blob/main/Shaping_the_Learning_Gradient_Distribution_with_Thermodynamic_Integration.pdf).
 
 ## To run
 
