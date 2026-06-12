@@ -8,6 +8,11 @@ ebm:
   p0_stddev = 1.0
   ula_eta = 0.16
   ula_numsteps = 60
+  lr_init = 0.00002
+  lr_end = 0.00001
+  lr_decay = 0.975
+  beta1 = 0.999
+  beta2 = 0.5
 
 gen:
   energy_dim = 100
@@ -17,6 +22,11 @@ gen:
   gaussian_stddev = 0.3
   ula_eta = 0.01
   ula_numsteps = 20
+  lr_init = 0.0001
+  lr_end = 0.00005
+  lr_decay = 0.975
+  beta1 = 0.999
+  beta2 = 0.5
 
 model:
   z_dim = 80
@@ -29,3 +39,11 @@ thermo:
 
 training:
   epochs=5
+
+lr_schedule:
+  begin = 1
+  step = 1 
+
+logging:
+  logdir = "logs/thermo/cifar10/"
+  ckpt_dit = "logs/thermo/cifar10/"

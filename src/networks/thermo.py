@@ -10,13 +10,10 @@ class thermoEBM(latentEBM):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 
-		self.train_idx = 0
-
 		self.num_temps = config.thermo.num_temps
 		self.p_cycles = config.thermo.annealing_cycles
 		self.p_start = config.thermo.p_start
 		self.p_end = config.thermo.p_end
-		self.num_updates = config.training.epochs
 
 		self.adapt_powerlaw()
 		self.adapt_temps()

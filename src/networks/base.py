@@ -21,6 +21,10 @@ class latentEBM(nnx.Module):
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 
+		epoch_updates = config.training.numdata // config.training.batch_size
+		self.num_updates = config.training.epochs * epoch_updates
+		self.train_idx = 0
+
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		"""Returns ∇_z( log[ p_α(x) ] )"""
 		return jax.grad(self.ebm.logprior)(z)

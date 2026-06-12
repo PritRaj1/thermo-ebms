@@ -1,23 +1,27 @@
-# JAX-Latent-Space-EBM-Prior
-Learning Latent Space Energy-Based Prior Model, presented by [Pang et al. (2020)](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf). Thermodynamic Integration, presented by [Calderhead and Girolami (2009)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), implemented as a means of exerting control over learning gradient variance. Implementation in jax/grain/orbax.
+# thermoEBMs
 
-MEng thesis provided in [report.pdf](https://github.com/PritRaj1/JAX-ThermoEBM/blob/main/Shaping_the_Learning_Gradient_Distribution_with_Thermodynamic_Integration.pdf).
+Repository hosting MEng thesis, (provided in [report.pdf](https://github.com/PritRaj1/JAX-ThermoEBM/blob/main/Shaping_the_Learning_Gradient_Distribution_with_Thermodynamic_Integration.pdf), awarded 1st class). The report is old and has some technical inaccuracies that have been corrected in my newer work [KAEM](https://arxiv.org/abs/2506.14167), (I've learned a lot since undergrad)!
+
+The implementation here, (recently migrated to newer jax syntax with nnx/grain/orbax), is aligned with the derivations in the newer work.
+
+- [Learning Latent Space Energy-Based Prior Model](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf)
+-[Thermodynamic Integration](https://www.sciencedirect.com/science/article/pii/S0167947309002722)
 
 ## To run
 
 To get started, follow these steps:
 
 1. Make sure you have Python version 3.9 or higher installed.
- 
+
 2. Install the required dependencies by running:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Edit the hyperparameters in the `hyperparams.ini` file according to your experiment setup.
+1. Edit the hyperparameters in the `hyperparams.ini` file according to your experiment setup.
 
-4. Run the main experiment script `main.py` to gather CSV logs. You can do this by executing:
+2. Run the main experiment script `main.py` to gather CSV logs. You can do this by executing:
 
 ```bash
 python main.py
@@ -46,7 +50,7 @@ We argue that adopting a distributional standpoint regarding a neural network's 
 <p align="center">
 <img src="https://github.com/PritRaj1/JAX-ThermoEBM/assets/77790119/b526520f-4d92-4eb2-a458-3b0224678a6b" width="50%">
 </p>
- 
+
 As you can see, increasing learning gradient variance improves image fidelity **until a minimum is achieved**, (so long as mode collapse has not occurred). Increasing further beyond this worsens image quality. Previous attempts at shaping the distribution of the learning gradient have sought or provided expressions to reduce or minimise variance, (see [Calderhead and Girolami (2009)](https://www.sciencedirect.com/science/article/pii/S0167947309002722) and [Faghri et al. (2007)](https://arxiv.org/abs/2007.04532)). This would make sense if the learning gradient had an analytic form, since minimising variance is akin to minimising error. However, instead...
 
 ```math
@@ -66,7 +70,7 @@ As such, more focus needs to be placed on investigating the distributional chara
 
 ## Thermodynamic Integration
 
-Batch size is another means of controlling the learning gradient variance, however it's not robust. Below is an experiment I ran comprising 5 repetitions. Here, batch size was varied and the range of learning gradient variances achieved across the repetitions was plotted. For reference, this is contrasted below against a model incorporating Thermodynamic Integration with a fixed batch size, and different values for a particular hyperparameter, $p$. 
+Batch size is another means of controlling the learning gradient variance, however it's not robust. Below is an experiment I ran comprising 5 repetitions. Here, batch size was varied and the range of learning gradient variances achieved across the repetitions was plotted. For reference, this is contrasted below against a model incorporating Thermodynamic Integration with a fixed batch size, and different values for a particular hyperparameter, $p$.
 
 <p align="center">
   <img src="results/CelebA/boxplots/grad_var_bsize.png" alt="Control of variance with batch size" width="50%" style="padding-right: 20px;">
@@ -96,6 +100,7 @@ Thermodynamic Integration replaces this marginal likelihood evaluation with the 
 ```math
 \log(p_\theta(\mathbf{x}))=\textcolor{red}{\int_0^1} \mathbb{E}_{p_\theta(\mathbf{z}|\mathbf{x},\textcolor{red}{t})}\left[ \log p_\beta(\mathbf{x}|\mathbf{z})\right] \, \textcolor{red}{dt}
 ```
+
 This thermodynamic integral accumulates the expected likelihood, evaluated using samples from a special tempered distribution known as the power posterior distribution:
 
 ```math
@@ -157,17 +162,10 @@ A large value of $p$ corresponds to a larger number of partitions or bins skewed
 
 This is how we parameterised the learning gradient variance. Different temperature schedules facilitate more or less variance to manifest in samples from the posterior distribution. This in turn manifests in the log-marginal likelihood, which reflects the learning gradient.
 
-## Acknowledgements:
+## Acknowledgements
 
 - Prof. Mark Girolami
 - Mr. Justin Bunker
 - [The Computational Statistics and Machine Learning Group](https://csml-cam.github.io/)
 - Cambridge University Engineering Department
 - Emmanuel College, the University of Cambridge
-
-
-
-
-
-
-
