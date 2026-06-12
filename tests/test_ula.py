@@ -21,16 +21,16 @@ def run_chain(model, key):
 		st, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
 		st, _ = kernel.step(subkey, st)
-		return (st, newkey), st.position
+		return (st, newkey), st
 
-	(_, _), z = jax.lax.scan(
+	(_, _), state = jax.lax.scan(
 		step,
 		(state, key),
 		xs=None,
 		length=model.ula_iters_prior,
 	)
 
-	return z
+	return state
 
 
 def test_mala_plot():
@@ -39,30 +39,25 @@ def test_mala_plot():
 
 	cfg = make_config()
 	model = latentEBM(cfg, rngs)
-
 	traj = run_chain(model, key)
-	energy = jax.vmap(lambda z: model.ebm.logprior(z.squeeze()))(traj)
+	z = traj.position
+	energy = jax.vmap(lambda zi: model.ebm.logprior(zi))(z)
 
 	os.makedirs("debug_plots", exist_ok=True)
 
-	plt.figure()
-	plt.plot(energy)
-	plt.title("MALA prior energy")
-	plt.xlabel("Step")
-	plt.ylabel("Energy")
-	plt.savefig("debug_plots/energy_traj.png", dpi=150)
-	plt.close()
+	fig, (ax, ax1) = plt.subplots(1, 2, figsize=(15, 6))
 
-	var = jnp.var(traj.reshape(traj.shape[0], -1), axis=1)
+	z = z.reshape(z.shape[0], -1)
+	ax.plot(z[:, 0])
+	ax.set_xlabel("Samples")
+	ax.set_ylabel("z[0]")
 
-	plt.figure()
-	plt.plot(var)
-	plt.title("Latent variance over time")
-	plt.xlabel("Step")
-	plt.ylabel("Variance")
-	plt.savefig("debug_plots/variance_traj.png", dpi=150)
+	ax1.plot(jnp.linalg.norm(z, axis=-1))
+	ax1.set_xlabel("Samples")
+	ax1.set_ylabel("||z||")
+
+	plt.savefig("debug_plots/mala_traj.png", dpi=150)
 	plt.close()
 
 	assert jnp.isfinite(energy).all()
 	assert jnp.std(energy) > 0.0
-	assert jnp.std(var) > 0.0
