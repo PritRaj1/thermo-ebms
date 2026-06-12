@@ -47,3 +47,4 @@ lr_schedule:
 logging:
   logdir = "logs/thermo/cifar10/"
   ckpt_dit = "logs/thermo/cifar10/"
+  ckpt_every = 2
