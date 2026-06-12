@@ -33,8 +33,8 @@ class ebmTrainer:
 		nnx.display(self.st.model)
 
 		self.writer = metric_writers.create_default_writer(logdir=config.logging.logdir)
-		with open(logdir / "config_copy.yaml", "w") as f:
-			yaml.safe_dump(self.config.to_dict(), f)
+		with open(config.logging.logdir / "config_copy.yaml", "w") as f:
+			yaml.safe_dump(config.to_dict(), f)
 
 		self.progress = periodic_actions.ReportProgress(
 			num_train_steps=model.num_updates
@@ -50,14 +50,15 @@ class ebmTrainer:
 			config.logging.ckpt_dir,
 			options=ocp.CheckpointManagerOptions(
 				max_to_keep=5,
-				save_interval_steps=ckpt_every,
+				save_interval_steps=self.ckpt_every,
 				create=True,
 			),
 		)
 		self.train_loader, self.test_loader = get_loaders(config.dataset)
+		self.num_epochs = config.training.num_epochs
 
 	@nnx.jit
-	def update(self, key: jax.Array, x: jax.Array) -> jax.Array:
+	def update(self, key: jax.Array, x: jax.Array) -> tuple[jax.Array, jax.Array]:
 		key, prior_key, posterior_key = jax.random.split(key, 3)
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_posterior = self.st.model.sample_posterior(posterior_key, x)
@@ -73,15 +74,15 @@ class ebmTrainer:
 		loss_val, grads = nnx.value_and_grad(loss)(ps)
 		self.st.update(grads)
 		self.st.model.train_idx += 1
-		return loss_val, subkey
+		return loss_val, key
 
 	@nnx.jit
-	def eval_step(self, key: jax.Array, x: jax.Array) -> jax.Array:
+	def eval_step(self, key: jax.Array, x: jax.Array) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
 		z_prior = self.st.model.sample_prior(subkey, x.shape[0])
 		return self.st.model.gen.loss(x, z_prior), subkey
 
-	def train(self, key: jax.Array):
+	def train_epoch(self, key: jax.Array):
 		for batch in self.train_loader:
 			loss, key = self.update(key, batch["x"])
 			self.writer.write_scalars(self.st.model.train_idx, {"train_loss": loss})
@@ -101,16 +102,22 @@ class ebmTrainer:
 			x = self.st.model(subkey, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": x})
 
-		if train_idx % self.ckpt_every == 0:
-			self.ckpt_manager.save(
-				train_idx,
-				args=ocp.args.StandardSave(
-					{
-						"train_state": self.st,
-						"rng": key,
-						"step": train_idx,
-					}
-				),
-			)
+		self.ckpt_manager.save(
+			train_idx,
+			args=ocp.args.StandardSave(
+				{
+					"train_state": self.st,
+					"rng": key,
+					"step": train_idx,
+				}
+			),
+		)
 
+		return key
+
+		def run(self, key: jax.Array) -> jax.Array:
+			for epoch in self.num_epochs:
+				key = self.train_epoch(key)
+
+		self.writer.flush()
 		return key
