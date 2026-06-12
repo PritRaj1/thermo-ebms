@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from functools import partial
 from flax import nnx
 from ml_collections import ConfigDict
 
@@ -53,6 +54,8 @@ class latentEBM(nnx.Module):
 		)
 
 		return z
+
+	partial(jax.jit, static_argnames=("N",))
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		z = self.sample_prior(key, N)
