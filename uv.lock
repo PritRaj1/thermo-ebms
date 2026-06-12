@@ -68,6 +68,23 @@ wheels = [
 ]
 
 [[package]]
+name = "blackjax"
+version = "1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "numpy" },
+    { name = "optax" },
+    { name = "scipy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/99/2e/49621e028c395730d005bff2272b7bb144b7e0eb40028f8ba569cf6e2712/blackjax-1.5.tar.gz", hash = "sha256:c4a9898d4f5340894301cd382c28d72790e38847edaf4cfc9584dbd47bd205e1", size = 4710254, upload-time = "2026-04-03T07:20:06.962Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0e/a7/83b321492fe7e5d0af07f484ec0100bb6ca561aa64cad1d34fc58a015d0f/blackjax-1.5-py3-none-any.whl", hash = "sha256:f3ba5cab7aeee79939326a49d71a08dd1ce35f647e96ff82d2e8556f19e4e487", size = 4697170, upload-time = "2026-04-03T07:20:05.139Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.5.20"
 source = { registry = "https://pypi.org/simple" }
@@ -666,6 +683,7 @@ name = "jax-thermoebm"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "blackjax" },
     { name = "clu" },
     { name = "flax" },
     { name = "grain" },
@@ -694,6 +712,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "blackjax", specifier = ">=1.5" },
     { name = "clu", specifier = ">=0.0.12" },
     { name = "flax", specifier = ">=0.12.7" },
     { name = "grain", specifier = ">=0.2.17" },

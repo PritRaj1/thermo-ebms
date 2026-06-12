@@ -1,10 +1,6 @@
 dataset/
-*.out
-results/*png
-results/boxplots/*png
-results/evolutions/*png
-results/relationships/*png
-details.txt
+logs/
+debug_plots/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

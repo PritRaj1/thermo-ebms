@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "blackjax>=1.5",
     "clu>=0.0.12",
     "flax>=0.12.7",
     "grain>=0.2.17",

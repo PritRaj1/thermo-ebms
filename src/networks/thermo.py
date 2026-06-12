@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 from ml_collections import ConfigDict
+import blackjax
 
 from .base import latentEBM
 
@@ -31,37 +32,36 @@ class thermoEBM(latentEBM):
 		return self.prior_score(z) + grad_ll
 
 	def _sample_temp(self, key, x, t):
+		def log_powerpost(z: jax.Array) -> jax.Array:
+			return t * self.gen.loglkhood(z, x) + self.ebm.logprior(z)
+
+		mala_kernel = blackjax.mala(log_powerpost, self.ula_step_post)
 		z0, key = self.ula_init(key, x.shape[0])
+		state = mala_kernel.init(z0)
 
-		def _ula(carry, _):
-			z, key = carry
-			key, noise_key = jax.random.split(key)
+		def step(carry, _):
+			st, newkey = carry
+			newkey, subkey = jax.random.split(newkey)
+			st, _ = mala_kernel.step(subkey, st)
+			return (st, newkey), None
 
-			score = self.posterior_score(z, x, t)
-			noise = jax.random.normal(noise_key, z.shape)
-
-			eta = self.ula_step_post
-			z = z + eta * score + jnp.sqrt(2.0 * eta) * noise
-
-			return (z, key), None
-
-		(zT, _), _ = jax.lax.scan(
-			_ula,
-			(z0, key),
+		(state, _), _ = jax.lax.scan(
+			step,
+			(state, key),
 			xs=None,
 			length=self.ula_iters_post,
 		)
 
-		return zT
+		return state.position
 
 	def sample_posterior(self, key, x):
 		self.eval()
 
-		def single_temp(t):
-			k = jax.random.fold_in(key, jnp.asarray(t))
+		def single_temp(k, t):
 			return self._sample_temp(k, x, t)
 
-		return jax.vmap(single_temp)(self.temps[1:])
+		keys = jax.random.split(key, len(self.temps[1:]))
+		return jax.vmap(single_temp)(keys, self.temps[1:])
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""
