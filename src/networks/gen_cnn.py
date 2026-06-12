@@ -83,3 +83,7 @@ class GEN(nnx.Module):
 		sqr_err = diff**2
 		ll = sqr_err / (2 * self.sigma**2)
 		return -ll.sum()
+
+	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
+		"""Gaussian/pixel loss"""
+		return jnp.mean((x - self(z_post)) ** 2)

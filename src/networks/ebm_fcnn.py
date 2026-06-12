@@ -31,3 +31,7 @@ class EBM(nnx.Module):
 		"""log(p_α(z)) ∝ f(z) - 0.5 * ||z||^2 / σ^2"""
 		lp = self(z) - 0.5 * (z**2) / (self.sigma**2)
 		return lp.sum()
+
+	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
+		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
+		return self(z_post).mean() - self(z_prior).mean()

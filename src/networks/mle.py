@@ -39,3 +39,7 @@ class mleEBM(latentEBM):
 		)
 
 		return z
+
+
+def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
+	return self.gen.loss(x, z_post)
