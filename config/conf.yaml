@@ -49,3 +49,9 @@ logging:
   ckpt_dit = "logs/thermo/cifar10/"
   ckpt_every = 2
   eval_every = 2
+  sample_every = 2
+  num_samples = 100
+
+unbiased_metrics:
+  num_samples = 20000
+  regression_steps = 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000
