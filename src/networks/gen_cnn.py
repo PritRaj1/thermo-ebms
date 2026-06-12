@@ -77,10 +77,9 @@ class GEN(nnx.Module):
 		self,
 		z: jax.Array,
 		x: jax.Array,
-		t: jax.Array,
 	) -> jax.Array:
 		"""log p(x|z)^t ∝ -t * ||x - g(z)||^2 / (2σ^2)"""
 		diff = x - self(z)
 		sqr_err = diff**2
-		ll = -t * sqr_err / (2 * self.sigma**2)
-		return ll.sum()
+		ll = sqr_err / (2 * self.sigma**2)
+		return -ll.sum()

@@ -20,3 +20,12 @@ gen:
 
 model:
   z_dim = 80
+
+thermo:
+  num_temps = 10
+  annealing_cycles = 0
+  p_start = 6
+  p_end = 6
+
+training:
+  epochs=5
