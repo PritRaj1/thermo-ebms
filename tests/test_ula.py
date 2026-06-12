@@ -7,31 +7,7 @@ import matplotlib.pyplot as plt
 from ml_collections import ConfigDict
 
 from networks import latentEBM
-
-
-def make_config(z_dim=8):
-	cfg = ConfigDict()
-
-	cfg.model = ConfigDict()
-	cfg.model.z_dim = z_dim
-
-	cfg.ebm = ConfigDict()
-	cfg.ebm.energy_dim = 32
-	cfg.ebm.leakyrelu_leak = 0.1
-	cfg.ebm.p0_stddev = 1.0
-	cfg.ebm.ula_eta = 0.001
-	cfg.ebm.ula_numsteps = 1000
-
-	cfg.gen = ConfigDict()
-	cfg.gen.hidden_dim = 32
-	cfg.gen.img_channels = 3
-	cfg.gen.image_res = 32
-	cfg.gen.leakyrelu_leak = 0.1
-	cfg.gen.gaussian_stddev = 1.0
-	cfg.gen.ula_eta = 1e-3
-	cfg.gen.ula_numsteps = 100
-
-	return cfg
+from utils import make_config
 
 
 def run_chain(model, key):

@@ -41,9 +41,9 @@ class latentEBM(nnx.Module):
 		z0 = jax.random.normal(subkey, (N, 1, 1, self.z_dim)) * self.ebm.sigma
 		return z0, key
 
-	def sample_prior(self, key: jax.Array) -> jax.Array:
-		z0, key = self.ula_init(key, 1)
+	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
+		z0, key = self.ula_init(key, N)
 
 		(z, _), _ = jax.lax.scan(
 			self.ula_prior_step,
@@ -53,3 +53,7 @@ class latentEBM(nnx.Module):
 		)
 
 		return z
+
+	def __call__(self, key: jax.Array, N: int) -> jax.Array:
+		z = self.sample_prior(key, N)
+		return self.gen(z)
