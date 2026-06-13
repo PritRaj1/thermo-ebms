@@ -1,8 +1,0 @@
--f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-jax[cuda12_pip]
-flax[all]
-optax
-matplotlib
-tqdm
-seaborn
-requests

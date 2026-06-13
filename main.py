@@ -12,10 +12,7 @@ def load_config(config_path: str) -> ml_collections.ConfigDict:
 
 def main():
 	config = load_config("config/conf.yaml")
-	train_loader, test_loader = get_loaders(config.dataset)
-	train_iter = iter(train_loader)
-	print(train_iter)
-	sample = next(train_iter)
+    ebmTrainer
 
 
 if __name__ == "__main__":

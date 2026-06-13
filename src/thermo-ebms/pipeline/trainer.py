@@ -2,22 +2,15 @@ from clu import metric_writers
 from clu import periodic_actions
 from flax import nnx
 import orbax.checkpoint as ocp
+from pathlib import Path
+from ml_collections import ConfigDict
 import h5py
 import yaml
-from pathlib import Path
 
 from .loaders import get_loaders
 from ..networks import mleEBM, thermoEBM
 from .opt import coupled_opt
 from .metrics import UnbiasedMetrics
-
-
-def load_config(config_path: str) -> ml_collections.ConfigDict:
-	"""Loads YAML configuration into a ConfigDict."""
-	with open(config_path, "r") as f:
-		config = yaml.safe_load(f)
-	return ml_collections.ConfigDict(config)
-
 
 def to_uint8(x: jax.Array) -> np.ndarray:
 	x = np.asarray(x)
@@ -29,10 +22,9 @@ def to_uint8(x: jax.Array) -> np.ndarray:
 class ebmTrainer:
 	def __init__(
 		self,
-		config_path: str,
+		config: ConfigDict,
 		rngs: nnx.Rngs,
 	):
-		config = load_config(config_path)
 		model = (
 			thermoEBM(config, rngs)
 			if config.thermo.num_temps > 1
