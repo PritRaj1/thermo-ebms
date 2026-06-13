@@ -8,8 +8,8 @@ ebm:
   lr_init = 0.00002
   lr_end = 0.00001
   lr_decay = 0.975
-  beta1 = 0.999
-  beta2 = 0.5
+  lr_beta1 = 0.999
+  lr_beta2 = 0.5
 
 gen:
   energy_dim = 100
@@ -23,8 +23,8 @@ gen:
   lr_init = 0.0001
   lr_end = 0.00005
   lr_decay = 0.975
-  beta1 = 0.999
-  beta2 = 0.5
+  lr_beta1 = 0.999
+  lr_beta2 = 0.5
 
 model:
   z_dim = 80

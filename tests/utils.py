@@ -18,8 +18,8 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.ebm.lr_init = 0.00002
 	cfg.ebm.lr_end = 0.00001
 	cfg.ebm.lr_decay = 0.975
-	cfg.ebm.beta1 = 0.999
-	cfg.ebm.beta2 = 0.5
+	cfg.ebm.lr_beta1 = 0.999
+	cfg.ebm.lr_beta2 = 0.5
 
 	cfg.gen = ConfigDict()
 	cfg.gen.hidden_dim = 32
@@ -33,8 +33,8 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.gen.lr_init = 0.00002
 	cfg.gen.lr_end = 0.00001
 	cfg.gen.lr_decay = 0.975
-	cfg.gen.beta1 = 0.999
-	cfg.gen.beta2 = 0.5
+	cfg.gen.lr_beta1 = 0.999
+	cfg.gen.lr_beta2 = 0.5
 
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps
@@ -44,6 +44,22 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.training.epochs = 5
 	cfg.training.batch_size = 10
 	cfg.training.dataset = "cifar10"
+
+	cfg.unbiased_metrics = ConfigDict()
+	cfg.unbiased_metrics.batch_size_to_generate = 100
+	cfg.unbiased_metrics.num_samples = 200
+
+	cfg.logging = ConfigDict()
+	cfg.logging.logdir = "/tmp/"
+	cfg.logging.ckpt_dit = "/tmp/"
+	cfg.logging.ckpt_every = 2
+	cfg.logging.eval_every = 2
+	cfg.logging.sample_every = 2
+	cfg.logging.num_samples = 100
+
+	cfg.lr_schedule = ConfigDict()
+	cfg.lr_schedule.begin = 1
+	cfg.lr_schedule.step = 1
 
 	return cfg
 

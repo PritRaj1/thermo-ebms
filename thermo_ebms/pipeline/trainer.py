@@ -33,12 +33,13 @@ class ebmTrainer:
 			else mleEBM(config, rngs)
 		)
 
-		self.train_loader, self.test_loader = get_loaders(config.training)
-		self.num_epochs = config.training.num_epochs
+		self.train_loader, self.test_loader, updates_per_epoch = get_loaders(
+			config.training
+		)
+		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
 		self.final_bsize = config.unbiased_metrics.batch_size_to_generate
 
-		updates_per_epoch = len(self.train_loader)
 		ckpt_every = config.logging.ckpt_every * updates_per_epoch
 		self.eval_every = config.logging.eval_every * updates_per_epoch
 		self.sample_every = config.logging.sample_every * updates_per_epoch

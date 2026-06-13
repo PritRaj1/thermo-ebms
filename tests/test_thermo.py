@@ -5,25 +5,20 @@ from flax import nnx
 from thermo_ebms import thermoEBM
 from utils import make_config, make_x
 
+cfg = make_config()
+x = make_x(batch=5)
+
 
 def test_shape():
-	cfg = make_config()
 	key = jax.random.key(0)
-	rngs = nnx.Rngs(key)
-
-	model = thermoEBM(cfg, rngs)
-	x = make_x(batch=5)
+	model = thermoEBM(cfg, nnx.Rngs(key))
 	z = model.sample_posterior(key, x)
-
 	assert z.shape == (cfg.thermo.num_temps, 5, 1, 1, cfg.model.z_dim)
 
 
 def test_sampling():
-	cfg = make_config()
 	key = jax.random.key(0)
-
 	model = thermoEBM(cfg, nnx.Rngs(key))
-	x = make_x()
 	z = model.sample_posterior(key, x)
 
 	var = jnp.var(z)
@@ -32,11 +27,8 @@ def test_sampling():
 
 
 def test_thermo_loss():
-	cfg = make_config()
 	key = jax.random.key(0)
-
 	model = thermoEBM(cfg, nnx.Rngs(key))
-	x = make_x(batch=5)
 
 	key, prior_key, post_key = jax.random.split(key, 3)
 	z_post = jax.random.normal(
