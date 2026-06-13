@@ -86,4 +86,4 @@ class GEN(nnx.Module):
 
 	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
 		"""Gaussian/pixel loss"""
-		return jnp.mean((x - self(z_post)) ** 2)
+		return ((x - self(z_post)) ** 2).mean()

@@ -13,10 +13,10 @@ def test_shape():
 	rngs = nnx.Rngs(key)
 
 	model = thermoEBM(cfg, rngs)
-	x = make_x(batch=4)
+	x = make_x(batch=5)
 	z = model.sample_posterior(key, x)
 
-	assert z.shape == (cfg.thermo.num_temps - 1, 4, 1, 1, cfg.model.z_dim)
+	assert z.shape == (cfg.thermo.num_temps, 5, 1, 1, cfg.model.z_dim)
 
 
 def test_sampling():
