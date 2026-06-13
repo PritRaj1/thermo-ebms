@@ -1,9 +1,7 @@
 import jax
-import jax.numpy as jnp
 from functools import partial
 from flax import nnx
 from ml_collections import ConfigDict
-import blackjax
 
 from .ebm_fcnn import EBM
 from .gen_cnn import GEN

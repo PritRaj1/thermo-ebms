@@ -1,5 +1,4 @@
 import os
-import pytest
 import matplotlib.pyplot as plt
 import jax
 import jax.numpy as jnp

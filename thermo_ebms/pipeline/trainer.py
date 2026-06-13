@@ -1,6 +1,8 @@
 from clu import metric_writers
 from clu import periodic_actions
+import jax
 from flax import nnx
+import numpy as np
 import orbax.checkpoint as ocp
 from pathlib import Path
 from ml_collections import ConfigDict
@@ -10,7 +12,6 @@ import yaml
 from .loaders import get_loaders
 from ..networks import mleEBM, thermoEBM
 from .opt import coupled_opt
-from .metrics import UnbiasedMetrics
 
 
 def to_uint8(x: jax.Array) -> np.ndarray:

@@ -1,11 +1,8 @@
 import jax
-import jax.numpy as jnp
 from flax import nnx
 from ml_collections import ConfigDict
-import blackjax
 
 from .base import neuralEBM
-from .sampling import NUTS_sampler
 
 
 class mleEBM(neuralEBM):

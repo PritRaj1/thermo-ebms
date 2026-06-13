@@ -15,7 +15,8 @@ class GEN(nnx.Module):
 		image_dim = gen_config.image_res
 		self.sigma = gen_config.gaussian_stddev
 
-		act = lambda x: nnx.leaky_relu(x, negative_slope=gen_config.leakyrelu_leak)
+		def act(x: jax.Array) -> jax.Array:
+			return nnx.leaky_relu(x, negative_slope=gen_config.leakyrelu_leak)
 
 		def deconv(cin, cout, stride=2, padding="SAME"):
 			return nnx.ConvTranspose(

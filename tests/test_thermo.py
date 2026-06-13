@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-import pytest
 from flax import nnx
 
 from thermo_ebms import thermoEBM

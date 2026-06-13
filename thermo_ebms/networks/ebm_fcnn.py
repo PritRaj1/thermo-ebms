@@ -11,10 +11,10 @@ class EBM(nnx.Module):
 		rngs: nnx.Rngs,
 	):
 		hidden_dim = ebm_config.energy_dim
-		leak_coef = ebm_config.leakyrelu_leak
 		self.sigma = ebm_config.p0_stddev
 
-		act = lambda x: nnx.leaky_relu(x, negative_slope=leak_coef)
+		def act(x: jax.Array) -> jax.Array:
+			return nnx.leaky_relu(x, negative_slope=ebm_config.leakyrelu_leak)
 
 		self.f = nnx.Sequential(
 			nnx.Linear(z_dim, hidden_dim, rngs=rngs),

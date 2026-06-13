@@ -37,7 +37,7 @@ class UnbiasedMetrics:
 		if not cfg_path.exists():
 			raise FileNotFoundError(cfg_path)
 
-		with open(cfg_path, "r") as f:
+		with open(cfg_path) as f:
 			return yaml.safe_load(f)
 
 	@staticmethod
