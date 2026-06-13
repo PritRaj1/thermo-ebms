@@ -13,7 +13,7 @@ pip install -e ".[train,eval,dev]" # w/ optional deps for orbax/grain training a
 
 ## About
 
-The original motivation for this work, (during my 2023/24 [MEng thesis](docs/Shaping_the_Learning_Gradient_Distribution_with_Thermodynamic_Integration.pdf)), was to investigate TI as a means of controlling learning gradient variance in deep generative models. Exploration vs exploitation is still an unanswered question, and previous attempts at investigating it proved unreliable.
+The original motivation for this work, (during my 2023/24 [MEng thesis](docs/report.pdf)), was to investigate TI as a means of controlling learning gradient variance in deep generative models. Exploration vs exploitation is still an unanswered question, and previous attempts at investigating it proved unreliable.
 
 <p align="center">
   <img src="https://github.com/PritRaj1/JAX-ThermoEBM/assets/77790119/b526520f-4d92-4eb2-a458-3b0224678a6b" width="50%">
