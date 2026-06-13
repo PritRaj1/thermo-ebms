@@ -45,9 +45,9 @@ class ebmTrainer:
 		self.sample_every = config.logging.sample_every * updates_per_epoch
 		self.num_samples = config.logging.num_samples
 
-		opt = coupled_opt(config, updates_per_epoch)
-		self.st = nnx.ModelAndOptimizer(model, opt)
-		nnx.display(self.st.model)
+		tx = coupled_opt(model, config, updates_per_epoch)
+		self.st = nnx.ModelAndOptimizer(model, tx)
+		nnx.display(model)
 
 		logdir = config.logging.logdir
 		self.logdir = Path(logdir)

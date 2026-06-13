@@ -51,7 +51,7 @@ def make_config(z_dim=8, num_temps=5):
 
 	cfg.logging = ConfigDict()
 	cfg.logging.logdir = "/tmp/"
-	cfg.logging.ckpt_dit = "/tmp/"
+	cfg.logging.ckpt_dir = "/tmp/"
 	cfg.logging.ckpt_every = 2
 	cfg.logging.eval_every = 2
 	cfg.logging.sample_every = 2
