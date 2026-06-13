@@ -13,8 +13,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
 	cfg.ebm.nuts_eta = 1e-1
-	cfg.ebm.nuts_burn_in = 20
-	cfg.ebm.nuts_numsteps = 1000
+	cfg.ebm.nuts_burn_in = 2
+	cfg.ebm.nuts_numsteps = 5
 	cfg.ebm.lr_init = 0.00002
 	cfg.ebm.lr_end = 0.00001
 	cfg.ebm.lr_decay = 0.975
@@ -28,8 +28,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.gen.leakyrelu_leak = 0.1
 	cfg.gen.gaussian_stddev = 1.0
 	cfg.gen.nuts_eta = 1e-3
-	cfg.gen.nuts_burn_in = 10
-	cfg.gen.nuts_numsteps = 100
+	cfg.gen.nuts_burn_in = 2
+	cfg.gen.nuts_numsteps = 5
 	cfg.gen.lr_init = 0.00002
 	cfg.gen.lr_end = 0.00001
 	cfg.gen.lr_decay = 0.975
@@ -41,7 +41,7 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.thermo.xchange_every = 2
 
 	cfg.training = ConfigDict()
-	cfg.training.epochs = 3
+	cfg.training.epochs = 1
 	cfg.training.batch_size = 128
 	cfg.training.dataset = "cifar10"
 
@@ -52,9 +52,9 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.logging = ConfigDict()
 	cfg.logging.logdir = "/tmp/"
 	cfg.logging.ckpt_dir = "/tmp/"
-	cfg.logging.ckpt_every = 2
-	cfg.logging.eval_every = 2
-	cfg.logging.sample_every = 2
+	cfg.logging.ckpt_every = 1
+	cfg.logging.eval_every = 1
+	cfg.logging.sample_every = 1
 	cfg.logging.num_samples = 100
 
 	cfg.lr_schedule = ConfigDict()

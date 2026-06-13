@@ -50,6 +50,8 @@ def test_nuts_plot():
 	rngs = nnx.Rngs(key)
 
 	cfg = make_config()
+	cfg.ebm.nuts_burn_in = 20
+	cfg.ebm.nuts_numsteps = 1000
 	model = neuralEBM(cfg, rngs)
 	traj = run_chain(model, key)
 	z = traj.position
