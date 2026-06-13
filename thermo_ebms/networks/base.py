@@ -1,5 +1,4 @@
 import jax
-from functools import partial
 from flax import nnx
 from ml_collections import ConfigDict
 
@@ -23,11 +22,11 @@ class neuralEBM(nnx.Module):
 		return z0, key
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
-		self.eval()
 		z0, key = self.nuts_init(key, N)
 		return self.prior_sampler(key, self.ebm.logprior, z0)
 
-	@partial(nnx.jit, static_argnames=("N",))
+	@nnx.jit(static_argnames=("N",))
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
+		key, subkey = jax.random.split(key)
 		z = self.sample_prior(key, N)
-		return self.gen(z)
+		return self.gen(z), key

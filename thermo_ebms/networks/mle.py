@@ -10,8 +10,6 @@ class mleEBM(neuralEBM):
 		super().__init__(config, rngs)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
-		self.eval()
-
 		def logpost(z: jax.Array) -> jax.Array:
 			return self.gen.loglkhood(z, x) + self.ebm.logprior(z)
 

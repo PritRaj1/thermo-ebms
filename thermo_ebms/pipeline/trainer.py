@@ -12,6 +12,7 @@ import yaml
 from .loaders import get_loaders
 from ..networks import mleEBM, thermoEBM
 from .opt import coupled_opt
+from .jit import gen, eval_step, train_step
 
 
 def to_uint8(x: jax.Array) -> np.ndarray:
@@ -27,7 +28,7 @@ class ebmTrainer:
 		config: ConfigDict,
 		rngs: nnx.Rngs,
 	):
-		model = (
+		self.model = (
 			thermoEBM(config, rngs)
 			if config.thermo.num_temps > 1
 			else mleEBM(config, rngs)
@@ -45,9 +46,9 @@ class ebmTrainer:
 		self.sample_every = config.logging.sample_every * updates_per_epoch
 		self.num_samples = config.logging.num_samples
 
-		tx = coupled_opt(model, config, updates_per_epoch)
-		self.st = nnx.ModelAndOptimizer(model, tx)
-		nnx.display(model)
+		self.tx = coupled_opt(self.model, config, updates_per_epoch)
+		graph, ps, st = nnx.split(self.model, nnx.Param, ...)
+		self.opt_st = self.tx.init(ps)
 
 		logdir = config.logging.logdir
 		self.logdir = Path(logdir)
@@ -69,34 +70,11 @@ class ebmTrainer:
 			),
 		)
 
-	@nnx.jit
-	def update(self, key: jax.Array, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-		key, prior_key, posterior_key = jax.random.split(key, 3)
-		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
-		z_posterior = self.st.model.sample_posterior(posterior_key, x)
-
-		graph, ps, st = nnx.split(self.st.model, nnx.Param, ...)
-
-		def loss(ps_mut):
-			model = nnx.merge(graph, ps_mut, st)
-			cd = model.ebm.loss(z_posterior, z_prior)
-			recon = model.loss(x, z_posterior, z_prior)
-			return cd + recon
-
-		loss_val, grads = nnx.value_and_grad(loss)(ps)
-		self.st.update(grads)
-		self.st.model.train_idx += 1
-		return loss_val, key
-
-	@nnx.jit
-	def eval_step(self, key: jax.Array, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-		key, subkey = jax.random.split(key)
-		z_prior = self.st.model.sample_prior(subkey, x.shape[0])
-		return self.st.model.gen.loss(x, z_prior), subkey
-
 	def train_epoch(self, key: jax.Array):
 		for batch in self.train_loader:
-			loss, key = self.update(key, batch["x"])
+			self.model, self.opt_st, loss, key = train_step(
+				self.tx, self.opt_st, self.model, batch["x"], key
+			)
 			self.writer.write_scalars(self.st.model.train_idx, {"train_loss": loss})
 			self.progress(self.st.model.train_idx)
 
@@ -104,15 +82,14 @@ class ebmTrainer:
 		if train_idx % self.eval_every == 0:
 			loss = 0.0
 			for batch in self.test_loader:
-				loss_val, key = self.eval_step(key, batch["x"])
+				loss_val, key = eval_step(self.model, batch["x"], key)
 				loss += loss_val
 
 			loss /= len(self.test_loader)
 			self.writer.write_scalars(self.st.model.train_idx, {"test_loss": loss})
 
 		if train_idx % self.sample_every == 0:
-			key, subkey = jax.random.split(key)
-			x = self.st.model(subkey, self.num_samples)
+			x, key = gen(self.model, self.num_samples, key)
 			self.writer.write_images(train_idx, {"generated_batch": x})
 
 		self.ckpt_manager.save(
@@ -135,8 +112,7 @@ class ebmTrainer:
 		self.writer.flush()
 
 		with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
-			key, subkey = jax.random.split(key)
-			x = to_uint8(self.st.model(subkey, self.final_bsize))
+			x, key = gen(self.model, self.final_bsize, key)
 
 			dataset = f.create_dataset(
 				"samples",
@@ -150,13 +126,12 @@ class ebmTrainer:
 			f.attrs["shape"] = x.shape
 			f.attrs["dtype"] = "uint8"
 
-			dataset[: len(x)] = x
+			dataset[: len(x)] = to_uint8(x)
 			idx = len(x)
 			while idx < self.final_samples:
 				bs = min(self.final_bsize, self.final_samples - idx)
-				key, subkey = jax.random.split(key)
-				x = to_uint8(self.st.model(subkey, bs))
-				dataset[idx : idx + bs] = x
+				x, key = gen(self.model, bs, key)
+				dataset[idx : idx + bs] = to_uint8(x)
 				idx += bs
 
 		return key

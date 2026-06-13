@@ -5,11 +5,13 @@ from thermo_ebms import neuralEBM
 from utils import make_config
 
 
-def test_sample_prior():
-	cfg = make_config()
+cfg = make_config()
 
+
+def test_sample_prior():
 	key = jax.random.key(0)
 	model = neuralEBM(cfg, nnx.Rngs(key))
+	model.eval()
 
 	N = 4
 	z = model.sample_prior(key, N)
@@ -18,10 +20,9 @@ def test_sample_prior():
 
 
 def test_forward_generates_samples():
-	cfg = make_config()
 	key = jax.random.key(0)
-	rngs = nnx.Rngs(key)
-	model = neuralEBM(cfg, rngs)
+	model = neuralEBM(cfg, nnx.Rngs(key))
+	model.eval()
 
 	N = 4
 	x = model(key, N)
@@ -30,10 +31,9 @@ def test_forward_generates_samples():
 
 
 def test_contrastive_divergence():
-	cfg = make_config()
 	key = jax.random.key(0)
-	rngs = nnx.Rngs(key)
-	model = neuralEBM(cfg, rngs)
+	model = neuralEBM(cfg, nnx.Rngs(key))
+	model.eval()
 
 	N = 4
 	z_prior = model.sample_prior(key, N)

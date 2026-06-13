@@ -66,7 +66,6 @@ class thermoEBM(neuralEBM):
 		return new_z.reshape(self.num_temps * x.shape[1], *z.shape[1:])
 
 	def sample_posterior(self, key, x):
-		self.eval()
 		x = jnp.expand_dims(x, 0)
 
 		z0, key = self.nuts_init(key, x.shape[1] * self.num_temps)
