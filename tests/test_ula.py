@@ -13,27 +13,40 @@ from utils import make_config
 @nnx.jit
 def run_chain(model, key):
 	model.eval()
-	z0, key = model.ula_init(key, 1)
-	kernel = blackjax.mala(model.ebm.logprior, model.ula_step_prior)
-	state = kernel.init(z0)
+	z0, key = model.nuts_init(key, 1)
+	key, subkey = jax.random.split(key)
+	warmup = blackjax.window_adaptation(
+		blackjax.nuts,
+		model.ebm.logprior,
+	)
+
+	(state, params), _ = warmup.run(
+		subkey,
+		z0,
+		num_steps=model.nuts_warmup_prior,
+	)
+	nuts_kernel = blackjax.nuts(
+		model.ebm.logprior,
+		**params,
+	)
 
 	def step(carry, _):
 		st, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
-		st, _ = kernel.step(subkey, st)
+		st, _ = nuts_kernel.step(subkey, st)
 		return (st, newkey), st
 
 	(_, _), state = jax.lax.scan(
 		step,
 		(state, key),
 		xs=None,
-		length=model.ula_iters_prior,
+		length=model.nuts_iters_prior,
 	)
 
 	return state
 
 
-def test_mala_plot():
+def test_nuts_plot():
 	key = jax.random.key(0)
 	rngs = nnx.Rngs(key)
 
@@ -56,7 +69,7 @@ def test_mala_plot():
 	ax1.set_xlabel("Samples")
 	ax1.set_ylabel("||z||")
 
-	plt.savefig("debug_plots/mala_traj.png", dpi=150)
+	plt.savefig("debug_plots/nuts_traj.png", dpi=150)
 	plt.close()
 
 	assert jnp.isfinite(energy).all()

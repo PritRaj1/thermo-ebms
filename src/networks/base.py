@@ -13,11 +13,13 @@ class latentEBM(nnx.Module):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		self.z_dim = config.model.z_dim
 
-		self.ula_step_prior = config.ebm.ula_eta
-		self.ula_iters_prior = config.ebm.ula_numsteps
+		self.nuts_step_prior = config.ebm.nuts_eta
+		self.nuts_iters_prior = config.ebm.nuts_numsteps
+		self.nuts_warmup_prior = config.ebm.nuts_warmup_iters
 
-		self.ula_step_post = config.gen.ula_eta
-		self.ula_iters_post = config.gen.ula_numsteps
+		self.nuts_step_post = config.gen.nuts_eta
+		self.nuts_iters_post = config.gen.nuts_numsteps
+		self.nuts_warmup_post = config.gen.nuts_warmup_iters
 
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
@@ -26,28 +28,41 @@ class latentEBM(nnx.Module):
 		self.num_updates = config.training.epochs * epoch_updates
 		self.train_idx = 0
 
-	def ula_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
+	def nuts_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
 		z0 = jax.random.normal(subkey, (N, 1, 1, self.z_dim)) * self.ebm.sigma
 		return z0, key
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
-		mala_kernel = blackjax.mala(self.ebm.logprior, self.ula_step_prior)
-		z0, key = self.ula_init(key, N)
-		state = mala_kernel.init(z0)
+		z0, key = self.nuts_init(key, N)
+		key, subkey = jax.random.split(key)
+
+		warmup = blackjax.window_adaptation(
+			blackjax.nuts,
+			self.ebm.logprior,
+		)
+		(state, params), _ = warmup.run(
+			subkey,
+			z0,
+			num_steps=self.nuts_warmup_prior,
+		)
+		nuts_kernel = blackjax.nuts(
+			self.ebm.logprior,
+			**params,
+		)
 
 		def step(carry, _):
 			st, newkey = carry
 			newkey, subkey = jax.random.split(newkey)
-			st, _ = mala_kernel.step(subkey, st)
+			st, _ = nuts_kernel.step(subkey, st)
 			return (st, newkey), None
 
 		(state, _), _ = jax.lax.scan(
 			step,
 			(state, key),
 			xs=None,
-			length=self.ula_iters_prior,
+			length=self.nuts_iters_prior,
 		)
 
 		return state.position

@@ -12,8 +12,9 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.ebm.energy_dim = 32
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
-	cfg.ebm.ula_eta = 1e-1
-	cfg.ebm.ula_numsteps = 1000
+	cfg.ebm.nuts_eta = 1e-1
+	cfg.ebm.nuts_warmup_iters = 20
+	cfg.ebm.nuts_numsteps = 1000
 
 	cfg.gen = ConfigDict()
 	cfg.gen.hidden_dim = 32
@@ -21,8 +22,9 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.gen.image_res = 32
 	cfg.gen.leakyrelu_leak = 0.1
 	cfg.gen.gaussian_stddev = 1.0
-	cfg.gen.ula_eta = 1e-3
-	cfg.gen.ula_numsteps = 100
+	cfg.gen.nuts_eta = 1e-3
+	cfg.gen.nuts_warmup_iters = 10
+	cfg.gen.nuts_numsteps = 100
 
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps

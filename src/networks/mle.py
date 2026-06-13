@@ -17,21 +17,35 @@ class mleEBM(latentEBM):
 		def logpost(z: jax.Array) -> jax.Array:
 			return self.gen.loglkhood(z, x) + self.ebm.logprior(z)
 
-		mala_kernel = blackjax.mala(logpost, self.ula_step_post)
-		z0, key = self.ula_init(key, x.shape[0])
-		state = mala_kernel.init(z0)
+		z0, key = self.nuts_init(key, x.shape[0])
+		key, subkey = jax.random.split(key)
+
+		warmup = blackjax.window_adaptation(
+			blackjax.nuts,
+			logpost,
+		)
+
+		(state, params), _ = warmup.run(
+			subkey,
+			z0,
+			num_steps=self.nuts_warmup_post,
+		)
+		nuts_kernel = blackjax.nuts(
+			logpost,
+			**params,
+		)
 
 		def step(carry, _):
 			st, newkey = carry
 			newkey, subkey = jax.random.split(newkey)
-			st, _ = mala_kernel.step(subkey, st)
+			st, _ = nuts_kernel.step(subkey, st)
 			return (st, newkey), None
 
 		(state, _), _ = jax.lax.scan(
 			step,
 			(state, key),
 			xs=None,
-			length=self.ula_iters_post,
+			length=self.nuts_iters_post,
 		)
 
 		return state.position
