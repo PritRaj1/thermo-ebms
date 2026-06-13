@@ -75,10 +75,10 @@ class ebmTrainer:
 			self.model, self.opt_st, loss, key = train_step(
 				self.tx, self.opt_st, self.model, batch["x"], key
 			)
-			self.writer.write_scalars(self.st.model.train_idx, {"train_loss": loss})
-			self.progress(self.st.model.train_idx)
+			self.writer.write_scalars(self.model.train_idx, {"train_loss": loss})
+			self.progress(self.model.train_idx)
 
-		train_idx = self.st.model.train_idx
+		train_idx = self.model.train_idx
 		if train_idx % self.eval_every == 0:
 			loss = 0.0
 			for batch in self.test_loader:
@@ -86,7 +86,7 @@ class ebmTrainer:
 				loss += loss_val
 
 			loss /= len(self.test_loader)
-			self.writer.write_scalars(self.st.model.train_idx, {"test_loss": loss})
+			self.writer.write_scalars(self.model.train_idx, {"test_loss": loss})
 
 		if train_idx % self.sample_every == 0:
 			x, key = gen(self.model, self.num_samples, key)
@@ -96,7 +96,8 @@ class ebmTrainer:
 			train_idx,
 			args=ocp.args.StandardSave(
 				{
-					"train_state": self.st,
+					"model": self.model,
+					"opt_state": self.opt_st,
 					"rng": key,
 					"step": train_idx,
 				}
@@ -122,7 +123,7 @@ class ebmTrainer:
 				compression_opts=4,
 			)
 			f.attrs["num_samples"] = self.final_samples
-			f.attrs["num_updates"] = int(self.st.model.train_idx)
+			f.attrs["num_updates"] = int(self.model.train_idx)
 			f.attrs["shape"] = x.shape
 			f.attrs["dtype"] = "uint8"
 

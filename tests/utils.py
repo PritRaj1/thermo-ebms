@@ -9,7 +9,7 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.model.z_dim = z_dim
 
 	cfg.ebm = ConfigDict()
-	cfg.ebm.energy_dim = 32
+	cfg.ebm.energy_dim = 4
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
 	cfg.ebm.nuts_eta = 1e-1
@@ -22,7 +22,7 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.ebm.lr_beta2 = 0.5
 
 	cfg.gen = ConfigDict()
-	cfg.gen.hidden_dim = 32
+	cfg.gen.hidden_dim = 8
 	cfg.gen.img_channels = 3
 	cfg.gen.image_res = 32
 	cfg.gen.leakyrelu_leak = 0.1
@@ -41,8 +41,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.thermo.xchange_every = 2
 
 	cfg.training = ConfigDict()
-	cfg.training.epochs = 5
-	cfg.training.batch_size = 10
+	cfg.training.epochs = 3
+	cfg.training.batch_size = 128
 	cfg.training.dataset = "cifar10"
 
 	cfg.unbiased_metrics = ConfigDict()
