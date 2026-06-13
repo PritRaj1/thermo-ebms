@@ -12,7 +12,7 @@ class neuralEBM(nnx.Module):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		self.z_dim = config.model.z_dim
 		self.prior_sampler = NUTS_sampler(config.ebm)
-		self.posterior_sampler = NUTS_sampler(config.gen)
+		self.posterior_sampler = NUTS_sampler(config.gen, config.thermo)
 
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)

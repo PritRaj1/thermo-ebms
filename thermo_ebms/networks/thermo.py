@@ -28,6 +28,46 @@ class thermoEBM(neuralEBM):
 		cdf = cdf / cdf[-1]
 		self.temps = jnp.interp(jnp.linspace(0, 1, self.num_temps), cdf, self.temps)
 
+	def replica_xchange(
+		self, key: jax.Array, z: jax.Array, step_idx: jax.Array, x: jax.Array
+	) -> jax.Array:
+		ll = self.expanded_ll(x, z).mean(axis=1)
+
+		start = step_idx % 2
+		i = jnp.arange(start, self.num_temps - 1, 2)
+		j = i + 1
+
+		key, subkey = jax.random.split(key)
+		log_u = jnp.log(jax.random.uniform(subkey, self.num_temps))
+		log_alpha = (self.temps[i] - self.temps[j]) * (ll[j] - ll[i])
+		accept = log_u < log_alpha
+
+		perm = jnp.arange(self.num_temps)
+
+		def body(perm, inp):
+			i, j, acc = inp
+
+			# current locations
+			pi = perm[i]
+			pj = perm[j]
+
+			# conditional swap
+			pi_new = jnp.where(acc, pj, pi)
+			pj_new = jnp.where(acc, pi, pj)
+
+			perm = perm.at[i].set(pi_new)
+			perm = perm.at[j].set(pj_new)
+
+			return perm, None
+
+		perm, _ = jax.lax.scan(
+			body,
+			perm,
+			(i, j, accept),
+		)
+
+		return z[perm]
+
 	def sample_posterior(self, key, x):
 		self.eval()
 		x = jnp.expand_dims(x, 0)
@@ -37,7 +77,10 @@ class thermoEBM(neuralEBM):
 			ll = self.expanded_ll(x, z).mean(axis=1)
 			return (self.temps * ll).sum() + self.ebm.logprior(z)
 
-		z_post = self.posterior_sampler(key, log_powerpost, z0)
+		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
+			return self.replica_xchange(key_i, z_i, idx, x)
+
+		z_post = self.posterior_sampler(key, log_powerpost, z0, xchange)
 		self.adapt_temps(x, z_post)
 		return z_post.reshape(self.num_temps, x.shape[1], *z0.shape[1:])
 

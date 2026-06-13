@@ -35,9 +35,7 @@ model:
 
 thermo:
   num_temps = 10
-  annealing_cycles = 0
-  p_start = 6
-  p_end = 6
+  xchange_every = 2
 
 training:
   epochs=5

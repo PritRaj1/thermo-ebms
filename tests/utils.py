@@ -28,9 +28,7 @@ def make_config(z_dim=8, num_temps=5):
 
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps
-	cfg.thermo.annealing_cycles = 1.0
-	cfg.thermo.p_start = 0.5
-	cfg.thermo.p_end = 2.0
+	cfg.thermo.xchange_every = 2
 
 	cfg.training = ConfigDict()
 	cfg.training.epochs = 100
