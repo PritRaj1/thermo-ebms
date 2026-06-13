@@ -1,8 +1,6 @@
 # thermoEBMs
 
-Latent-space energy-based models (EBMs) for unsupervised generative modeling, with Thermodynamic Integration to improve EBM mixing and preserve single-pass, interpretable inference post-training.
-
-This package hosts jax/orbax/grain utilities for [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf), [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), (and soon [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)).
+This package hosts jax/orbax/grain utilities for [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf) + [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), (and soon [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)).
 
 ## Install
 
