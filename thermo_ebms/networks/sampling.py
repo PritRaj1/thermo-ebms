@@ -35,12 +35,17 @@ class NUTS_sampler(nnx.Module):
 			newkey, subkey = jax.random.split(newkey)
 			st, _ = kernel.step(subkey, st)
 
-			def swap(s):
-				return s._replace(position=xchange_func(newkey, st.position, idx))
+			if xchange_bool:
 
-			st = jax.lax.cond(
-				xchange_bool & (idx % self.xchange_every == 0), swap, lambda s: s, st
-			)
+				def swap(s):
+					return s._replace(position=xchange_func(newkey, st.position, idx))
+
+				st = jax.lax.cond(
+					xchange_bool & (idx % self.xchange_every == 0),
+					swap,
+					lambda s: s,
+					st,
+				)
 
 			return (st, newkey), None
 

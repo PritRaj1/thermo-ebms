@@ -29,3 +29,24 @@ def test_sampling():
 	var = jnp.var(z)
 	assert jnp.isfinite(var)
 	assert var > 1e-6
+
+
+def test_mle_loss():
+	cfg = make_config()
+	key = jax.random.key(0)
+
+	model = mleEBM(cfg, nnx.Rngs(key))
+	x = make_x(batch=4)
+
+	key, prior_key, post_key = jax.random.split(key, 3)
+	z_post = jax.random.normal(
+		post_key,
+		(4, 1, 1, cfg.model.z_dim),
+	)
+	z_prior = jax.random.normal(
+		prior_key,
+		(4, 1, 1, cfg.model.z_dim),
+	)
+
+	loss = model.loss(x, z_post, z_prior)
+	assert jnp.isfinite(loss)

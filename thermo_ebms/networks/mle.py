@@ -18,6 +18,5 @@ class mleEBM(neuralEBM):
 		z0, key = self.nuts_init(key, x.shape[0])
 		return self.posterior_sampler(key, logpost, z0)
 
-
-def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
-	return self.gen.loss(x, z_post)
+	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
+		return self.gen.loss(x, z_post)

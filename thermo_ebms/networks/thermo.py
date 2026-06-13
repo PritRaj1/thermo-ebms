@@ -94,12 +94,8 @@ class thermoEBM(neuralEBM):
 
 		1/2 * Σ [ ΔT (E_{z|x,t_i}[ log p_β(x | z) ] + E_{z|x,t_{i-1}}[ log p_β(x | z) ] )
 		"""
+		x = jnp.expand_dims(x, 0)
 		delta_t = self.temps[1:] - self.temps[:-1]
-
-		def pixel_loss(z_i: jax.Array) -> jax.Array:
-			return self.gen.loss(x, z_i)
-
-		expectations = jax.vmap(pixel_loss)(z_post)
+		expectations = self.expanded_ll(x, z_post).mean(axis=1)
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
-
 		return 0.5 * trapz.sum()
