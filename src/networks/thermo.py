@@ -5,6 +5,7 @@ from ml_collections import ConfigDict
 import blackjax
 
 from .base import latentEBM
+from .sampling import NUTS_sampler
 
 
 class thermoEBM(latentEBM):
@@ -26,47 +27,12 @@ class thermoEBM(latentEBM):
 	def adapt_temps(self):
 		self.temps = (jnp.arange(self.num_temps) / self.num_temps) ** self.p
 
-	def posterior_score(self, z, x, t):
-		"""Returns ∇_z log p_θ(z | x) = ∇_z( log p_β(x | z)^t * p_α(z) )"""
-		grad_ll = t * jax.grad(lambda zz: self.gen.loglkhood(zz, x))(z)
-		return self.prior_score(z) + grad_ll
-
 	def _sample_temp(self, key, x, t):
 		def log_powerpost(z: jax.Array) -> jax.Array:
 			return t * self.gen.loglkhood(z, x) + self.ebm.logprior(z)
 
 		z0, key = self.nuts_init(key, x.shape[0])
-		key, subkey = jax.random.split(key)
-
-		warmup = blackjax.window_adaptation(
-			blackjax.nuts,
-			log_powerpost,
-		)
-
-		(state, params), _ = warmup.run(
-			subkey,
-			z0,
-			num_steps=self.nuts_warmup_post,
-		)
-		nuts_kernel = blackjax.nuts(
-			log_powerpost,
-			**params,
-		)
-
-		def step(carry, _):
-			st, newkey = carry
-			newkey, subkey = jax.random.split(newkey)
-			st, _ = nuts_kernel.step(subkey, st)
-			return (st, newkey), None
-
-		(state, _), _ = jax.lax.scan(
-			step,
-			(state, key),
-			xs=None,
-			length=self.nuts_iters_post,
-		)
-
-		return state.position
+		return self.posterior_sampler(key, log_powerpost, z0)
 
 	def sample_posterior(self, key, x):
 		self.eval()

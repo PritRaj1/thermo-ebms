@@ -23,7 +23,7 @@ def run_chain(model, key):
 	(state, params), _ = warmup.run(
 		subkey,
 		z0,
-		num_steps=model.nuts_warmup_prior,
+		num_steps=model.prior_sampler.warmup,
 	)
 	nuts_kernel = blackjax.nuts(
 		model.ebm.logprior,
@@ -40,7 +40,7 @@ def run_chain(model, key):
 		step,
 		(state, key),
 		xs=None,
-		length=model.nuts_iters_prior,
+		length=model.prior_sampler.iters,
 	)
 
 	return state

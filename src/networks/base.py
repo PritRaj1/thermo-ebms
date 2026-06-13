@@ -7,19 +7,14 @@ import blackjax
 
 from .ebm_fcnn import EBM
 from .gen_cnn import GEN
+from .sampling import NUTS_sampler
 
 
 class latentEBM(nnx.Module):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		self.z_dim = config.model.z_dim
-
-		self.nuts_step_prior = config.ebm.nuts_eta
-		self.nuts_iters_prior = config.ebm.nuts_numsteps
-		self.nuts_warmup_prior = config.ebm.nuts_warmup_iters
-
-		self.nuts_step_post = config.gen.nuts_eta
-		self.nuts_iters_post = config.gen.nuts_numsteps
-		self.nuts_warmup_post = config.gen.nuts_warmup_iters
+		self.prior_sampler = NUTS_sampler(config.ebm)
+		self.posterior_sampler = NUTS_sampler(config.gen)
 
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
@@ -36,36 +31,7 @@ class latentEBM(nnx.Module):
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		z0, key = self.nuts_init(key, N)
-		key, subkey = jax.random.split(key)
-
-		warmup = blackjax.window_adaptation(
-			blackjax.nuts,
-			self.ebm.logprior,
-		)
-		(state, params), _ = warmup.run(
-			subkey,
-			z0,
-			num_steps=self.nuts_warmup_prior,
-		)
-		nuts_kernel = blackjax.nuts(
-			self.ebm.logprior,
-			**params,
-		)
-
-		def step(carry, _):
-			st, newkey = carry
-			newkey, subkey = jax.random.split(newkey)
-			st, _ = nuts_kernel.step(subkey, st)
-			return (st, newkey), None
-
-		(state, _), _ = jax.lax.scan(
-			step,
-			(state, key),
-			xs=None,
-			length=self.nuts_iters_prior,
-		)
-
-		return state.position
+		return self.prior_sampler(key, self.ebm.logprior, z0)
 
 	@partial(nnx.jit, static_argnames=("N",))
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:

@@ -18,7 +18,7 @@ posterior_mcmc = int(parser["MCMC"]["G_SAMPLE_STEPS"])
 
 """Get number of flops to do validation"""
 
- # Initialise the pipeline
+# Initialise the pipeline
 key = jax.random.PRNGKey(0)
 key, EBM_params, EBM_fwd = init_EBM(key)
 key, GEN_params, GEN_fwd = init_GEN(key)
@@ -31,7 +31,7 @@ fwd_fcn_tup = (EBM_fwd, GEN_fwd)
 
 test_x = np.random.randn(batch_size, 64, 64, 1)
 
-# Get the FLOPs estimate from the cost analysis 
+# Get the FLOPs estimate from the cost analysis
 wrapped = jax.xla_computation(partial(val_step, fwd_fcn_tup=fwd_fcn_tup))
 computation = wrapped(key, test_x, params_tup)
 
@@ -42,10 +42,14 @@ client = jax.lib.xla_bridge.get_backend()
 print(repr(client))
 analysis = jax.lib.xla_client._xla.hlo_module_cost_analysis(client, module)
 for key, value in analysis.items():
-    print('{}: {}'.format(key, value))
+	print("{}: {}".format(key, value))
 
 # Save the results
-df = pd.DataFrame({"num_temps": [num_temps],"posterior_mcmc": [posterior_mcmc], "flops": [analysis['flops']]})
+df = pd.DataFrame(
+	{
+		"num_temps": [num_temps],
+		"posterior_mcmc": [posterior_mcmc],
+		"flops": [analysis["flops"]],
+	}
+)
 df.to_csv("results/flops.csv", mode="a", header=False, index=False)
-
-

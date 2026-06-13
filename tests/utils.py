@@ -13,7 +13,7 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
 	cfg.ebm.nuts_eta = 1e-1
-	cfg.ebm.nuts_warmup_iters = 20
+	cfg.ebm.nuts_burn_in = 20
 	cfg.ebm.nuts_numsteps = 1000
 
 	cfg.gen = ConfigDict()
@@ -23,7 +23,7 @@ def make_config(z_dim=8, num_temps=5):
 	cfg.gen.leakyrelu_leak = 0.1
 	cfg.gen.gaussian_stddev = 1.0
 	cfg.gen.nuts_eta = 1e-3
-	cfg.gen.nuts_warmup_iters = 10
+	cfg.gen.nuts_burn_in = 10
 	cfg.gen.nuts_numsteps = 100
 
 	cfg.thermo = ConfigDict()
