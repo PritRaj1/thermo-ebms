@@ -9,6 +9,7 @@ from pathlib import Path
 from .loaders import get_loaders
 from ..networks import mleEBM, thermoEBM
 from .opt import coupled_opt
+from .metrics import UnbiasedMetrics
 
 
 def load_config(config_path: str) -> ml_collections.ConfigDict:
