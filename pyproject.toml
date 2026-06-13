@@ -27,6 +27,7 @@ train = [
     "optax>=0.2.8",
     "pyyaml>=6.0.3",
     "h5py",
+    "tensorboard>=2.20.0",
 ]
 
 eval = [
