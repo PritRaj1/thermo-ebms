@@ -4,11 +4,11 @@ from flax import nnx
 from ml_collections import ConfigDict
 import blackjax
 
-from .base import latentEBM
+from .base import neuralEBM
 from .sampling import NUTS_sampler
 
 
-class thermoEBM(latentEBM):
+class thermoEBM(neuralEBM):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 

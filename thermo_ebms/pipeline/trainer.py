@@ -12,6 +12,7 @@ from ..networks import mleEBM, thermoEBM
 from .opt import coupled_opt
 from .metrics import UnbiasedMetrics
 
+
 def to_uint8(x: jax.Array) -> np.ndarray:
 	x = np.asarray(x)
 	x = (x + 1.0) * 127.5

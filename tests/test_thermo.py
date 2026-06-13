@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 from flax import nnx
 
-from networks import thermoEBM
+from thermo_ebms import thermoEBM
 from utils import make_config, make_x
 
 

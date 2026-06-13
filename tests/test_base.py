@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from networks import latentEBM
+from thermo_ebms import neuralEBM
 from utils import make_config
 
 
@@ -10,7 +10,7 @@ def test_sample_prior():
 	cfg = make_config()
 
 	key = jax.random.key(0)
-	model = latentEBM(cfg, nnx.Rngs(key))
+	model = neuralEBM(cfg, nnx.Rngs(key))
 
 	N = 4
 	z = model.sample_prior(key, N)
@@ -22,7 +22,7 @@ def test_forward_generates_samples():
 	cfg = make_config()
 	key = jax.random.key(0)
 	rngs = nnx.Rngs(key)
-	model = latentEBM(cfg, rngs)
+	model = neuralEBM(cfg, rngs)
 
 	N = 4
 	x = model(key, N)
@@ -34,7 +34,7 @@ def test_contrastive_divergence():
 	cfg = make_config()
 	key = jax.random.key(0)
 	rngs = nnx.Rngs(key)
-	model = latentEBM(cfg, rngs)
+	model = neuralEBM(cfg, rngs)
 
 	N = 4
 	z_prior = model.sample_prior(key, N)

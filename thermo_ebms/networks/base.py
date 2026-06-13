@@ -10,7 +10,7 @@ from .gen_cnn import GEN
 from .sampling import NUTS_sampler
 
 
-class latentEBM(nnx.Module):
+class neuralEBM(nnx.Module):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		self.z_dim = config.model.z_dim
 		self.prior_sampler = NUTS_sampler(config.ebm)

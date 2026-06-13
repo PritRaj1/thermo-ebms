@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from flax import nnx
 import blackjax
 
-from networks import latentEBM
+from thermo_ebms import neuralEBM
 from utils import make_config
 
 
@@ -51,7 +51,7 @@ def test_nuts_plot():
 	rngs = nnx.Rngs(key)
 
 	cfg = make_config()
-	model = latentEBM(cfg, rngs)
+	model = neuralEBM(cfg, rngs)
 	traj = run_chain(model, key)
 	z = traj.position
 	energy = jax.vmap(lambda zi: model.ebm.logprior(zi))(z)

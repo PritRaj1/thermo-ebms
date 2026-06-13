@@ -12,7 +12,6 @@ def load_config(config_path: str) -> ml_collections.ConfigDict:
 
 def main():
 	config = load_config("config/conf.yaml")
-    ebmTrainer
 
 
 if __name__ == "__main__":
