@@ -2,7 +2,7 @@ import jax
 from ml_collections import ConfigDict
 
 
-def make_config(z_dim=8, num_temps=5):
+def make_config(z_dim=8, num_temps=4):
 	cfg = ConfigDict()
 
 	cfg.model = ConfigDict()

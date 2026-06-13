@@ -19,13 +19,13 @@ def test_sample_prior():
 	assert z.shape == (N, 1, 1, cfg.model.z_dim)
 
 
-def test_forward_generates_samples():
+def test_gen():
 	key = jax.random.key(0)
 	model = neuralEBM(cfg, nnx.Rngs(key))
 	model.eval()
 
 	N = 4
-	x = model(key, N)
+	x, key = model(key, N)
 	assert x.shape[0] == N
 	assert x.shape[1:] == (32, 32, 3)
 

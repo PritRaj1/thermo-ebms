@@ -6,6 +6,11 @@ from ml_collections import ConfigDict
 from .base import neuralEBM
 
 
+def build_pairs(T, offset):
+	idx = jnp.arange(offset, T, 2)
+	return jnp.stack([idx, idx + 1], axis=1)
+
+
 class thermoEBM(neuralEBM):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
@@ -13,10 +18,8 @@ class thermoEBM(neuralEBM):
 		self.temps = jnp.linspace(0.0, 1.0, self.num_temps)
 
 		# DEO exchange
-		self._i_even = jnp.arange(0, self.num_temps - 1, 2)
-		self._j_even = self._i_even + 1
-		self._i_odd = jnp.arange(1, self.num_temps - 1, 2)
-		self._j_odd = self._i_odd + 1
+		self.i_pairs = build_pairs(self.num_temps, 0)
+		self.j_pairs = build_pairs(self.num_temps, 1)
 
 	def expanded_ll(self, x: jax.Array, z: jax.Array) -> jax.Array:
 		x_gen = self.gen(z).reshape(self.num_temps, x.shape[1], *x.shape[2:])
@@ -46,9 +49,9 @@ class thermoEBM(neuralEBM):
 	) -> jax.Array:
 
 		ll = self.expanded_ll(x, z).mean(axis=1)
-		use_even = (step_idx % 2) == 0
-		i = jax.lax.select(use_even, self._i_even, self._i_odd)
-		j = jax.lax.select(use_even, self._j_even, self._j_odd)
+		phase = step_idx % 2
+		i = self.i_pairs[:, phase]
+		j = self.j_pairs[:, phase]
 
 		key, subkey = jax.random.split(key)
 		log_u = jnp.log(jax.random.uniform(subkey, shape=(i.shape[0],)))
