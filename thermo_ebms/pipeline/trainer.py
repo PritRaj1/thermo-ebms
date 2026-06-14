@@ -75,18 +75,21 @@ class ebmTrainer:
 			self.model, self.opt_st, loss, key = train_step(
 				self.tx, self.opt_st, self.model, batch["x"], key
 			)
-			self.writer.write_scalars(self.model.train_idx, {"train_loss": loss})
+			self.writer.write_scalars(self.model.train_idx, {"batch_loss": loss})
 			self.progress(self.model.train_idx)
 
 		train_idx = self.model.train_idx
 		if train_idx % self.eval_every == 0:
 			loss = 0.0
+			num_batches = 0
 			for batch in self.test_loader:
 				loss_val, key = eval_step(self.model, batch["x"], key)
 				loss += loss_val
+				num_batches += 1
 
-			loss /= len(self.test_loader)
-			self.writer.write_scalars(self.model.train_idx, {"test_loss": loss})
+			self.writer.write_scalars(
+				self.model.train_idx, {"test_loss": loss / num_batches}
+			)
 
 		if train_idx % self.sample_every == 0:
 			x, key = gen(self.model, self.num_samples, key)
