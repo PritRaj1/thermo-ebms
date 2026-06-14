@@ -13,7 +13,7 @@ class mleEBM(neuralEBM):
 		def logpost(z: jax.Array) -> jax.Array:
 			return self.gen.loglkhood(z, x) + self.ebm.logprior(z)
 
-		z0, key = self.nuts_init(key, x.shape[0])
+		z0, key = self.mcmc_init(key, x.shape[0])
 		return self.posterior_sampler(key, logpost, z0)
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:

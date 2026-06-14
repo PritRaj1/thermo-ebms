@@ -12,46 +12,34 @@ from utils import make_config
 @nnx.jit
 def run_chain(model, key):
 	model.eval()
-	z0, key = model.nuts_init(key, 1)
-	key, subkey = jax.random.split(key)
-	warmup = blackjax.window_adaptation(
-		blackjax.nuts,
-		model.ebm.logprior,
-	)
-
-	(state, params), _ = warmup.run(
-		subkey,
-		z0,
-		num_steps=model.prior_sampler.warmup,
-	)
-	nuts_kernel = blackjax.nuts(
-		model.ebm.logprior,
-		**params,
-	)
+	z0, key = model.mcmc_init(key, 1)
+	key, runkey = jax.random.split(key)
+	kernel = blackjax.mala(model.ebm.logprior, model.prior_sampler.step_size)
+	state = kernel.init(z0)
 
 	def step(carry, _):
 		st, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
-		st, _ = nuts_kernel.step(subkey, st)
+		st, _ = kernel.step(subkey, st)
 		return (st, newkey), st
 
 	(_, _), state = jax.lax.scan(
 		step,
-		(state, key),
+		(state, runkey),
 		xs=None,
-		length=model.prior_sampler.iters,
+		length=model.prior_sampler.run_iters,
 	)
 
 	return state
 
 
-def test_nuts_plot():
+def test_mcmc_plot():
 	key = jax.random.key(0)
 	rngs = nnx.Rngs(key)
 
 	cfg = make_config()
-	cfg.ebm.nuts_burn_in = 20
-	cfg.ebm.nuts_numsteps = 1000
+	cfg.ebm.mcmc_burn_in = 20
+	cfg.ebm.mcmc_numsteps = 1000
 	model = neuralEBM(cfg, rngs)
 	traj = run_chain(model, key)
 	z = traj.position
@@ -70,7 +58,7 @@ def test_nuts_plot():
 	ax1.set_xlabel("Samples")
 	ax1.set_ylabel("||z||")
 
-	plt.savefig("debug_plots/nuts_traj.png", dpi=150)
+	plt.savefig("debug_plots/mcmc_traj.png", dpi=150)
 	plt.close()
 
 	assert jnp.isfinite(energy).all()

@@ -71,7 +71,7 @@ class thermoEBM(neuralEBM):
 	def sample_posterior(self, key, x):
 		x = jnp.expand_dims(x, 0)
 
-		z0, key = self.nuts_init(key, x.shape[1] * self.num_temps)
+		z0, key = self.mcmc_init(key, x.shape[1] * self.num_temps)
 
 		def log_powerpost(z: jax.Array) -> jax.Array:
 			ll = self.expanded_ll(x, z).mean(axis=1)

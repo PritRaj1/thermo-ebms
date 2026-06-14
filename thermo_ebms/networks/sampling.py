@@ -6,10 +6,10 @@ from ml_collections import ConfigDict
 from collections.abc import Callable
 
 
-class NUTS_sampler(nnx.Module):
+class mcmc_sampler(nnx.Module):
 	def __init__(self, config: ConfigDict, xchange_conf: ConfigDict = None):
-		self.warmup = config.nuts_burn_in
-		self.iters = config.nuts_numsteps
+		self.step_size = config.mcmc_stepsize
+		self.run_iters = config.mcmc_numsteps
 		self.xchange_every = -1
 
 		if xchange_conf is not None:
@@ -24,11 +24,10 @@ class NUTS_sampler(nnx.Module):
 		z0: jax.Array,
 		xchange_func: Callable[[jax.Array, jax.Array], jax.Array] = None,
 	):
-		key, subkey = jax.random.split(key)
-		warmup = blackjax.window_adaptation(blackjax.nuts, logprob)
-		(state, params), _ = warmup.run(subkey, z0, num_steps=self.warmup)
-		kernel = blackjax.nuts(logprob, **params)
 		xchange_bool = (self.xchange_every > 0) & (xchange_func is not None)
+		key, runkey = jax.random.split(key)
+		kernel = blackjax.mala(logprob, self.step_size)
+		state = kernel.init(z0)
 
 		def step(carry, idx):
 			st, newkey = carry
@@ -49,5 +48,7 @@ class NUTS_sampler(nnx.Module):
 
 			return (st, newkey), None
 
-		(state, _), _ = jax.lax.scan(step, (state, key), xs=jnp.arange(self.iters))
+		(state, _), _ = jax.lax.scan(
+			step, (state, runkey), xs=jnp.arange(self.run_iters)
+		)
 		return state.position

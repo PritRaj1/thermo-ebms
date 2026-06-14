@@ -2,9 +2,8 @@ ebm:
   energy_dim = 100
   leakyrelu_leak = 0.1
   p0_stddev = 1.0
-  nuts_eta = 0.16
-  nuts_burn_in = 20
-  nuts_numsteps = 60
+  mcmc_step_size = 0.4
+  mcmc_numsteps = 60
   lr_init = 0.00002
   lr_end = 0.00001
   lr_decay = 0.975
@@ -17,9 +16,8 @@ gen:
   image_res = 32
   leakyrelu_leak = 0.2
   gaussian_stddev = 0.3
-  nuts_eta = 0.01
-  nuts_burn_in = 20
-  nuts_numsteps = 20
+  mcmc_step_size = 0.01
+  mcmc_numsteps = 20
   lr_init = 0.0001
   lr_end = 0.00005
   lr_decay = 0.975

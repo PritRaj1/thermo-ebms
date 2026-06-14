@@ -12,9 +12,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.ebm.energy_dim = 4
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
-	cfg.ebm.nuts_eta = 1e-1
-	cfg.ebm.nuts_burn_in = 2
-	cfg.ebm.nuts_numsteps = 5
+	cfg.ebm.mcmc_stepsize = 0.01
+	cfg.ebm.mcmc_numsteps = 5
 	cfg.ebm.lr_init = 0.00002
 	cfg.ebm.lr_end = 0.00001
 	cfg.ebm.lr_decay = 0.975
@@ -27,9 +26,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.gen.image_res = 32
 	cfg.gen.leakyrelu_leak = 0.1
 	cfg.gen.gaussian_stddev = 1.0
-	cfg.gen.nuts_eta = 1e-3
-	cfg.gen.nuts_burn_in = 2
-	cfg.gen.nuts_numsteps = 5
+	cfg.gen.mcmc_stepsize = 0.01
+	cfg.gen.mcmc_numsteps = 5
 	cfg.gen.lr_init = 0.00002
 	cfg.gen.lr_end = 0.00001
 	cfg.gen.lr_decay = 0.975
