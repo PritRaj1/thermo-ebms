@@ -9,23 +9,40 @@ import yaml
 from tempfile import TemporaryDirectory
 from PIL import Image
 from sklearn.linear_model import LinearRegression
+import tensorflow_datasets as tfds
 from torch_fidelity import calculate_metrics
 
 
+def test_data():
+	return [
+		{"image": np.random.randint(0, 256, size=(32, 32, 3), dtype=np.uint8)}
+		for _ in range(2000)
+	]
+
+
+def load_real(dataset: str, split: str = "test") -> np.ndarray:
+	if dataset == "fake32":
+		return np.asarray([sample["image"] for sample in test_data()])
+
+	ds = tfds.data_source(dataset, split=split)
+
+	images = []
+	for sample in ds:
+		images.append(sample["image"])
+
+	return np.asarray(images)
+
+
 class UnbiasedMetrics:
-	def __init__(
-		self,
-		run_dir: str | Path,
-		real_samples_path: str | Path,
-	):
+	def __init__(self, run_dir: str | Path):
 		self.run_dir = Path(run_dir)
-		self.real_samples_path = Path(real_samples_path)
 		self.config = self._load_config()
+		self.dataset = self.config["training"]["dataset"]
+		self.seed = self.config["model"]["seed"]
 
 		metrics_cfg = self.config["unbiased_metrics"]
 
-		self.batch_sizes = metrics_cfg["batch_sizes"]
-		self.seed = int(metrics_cfg.get("seed", 0))
+		self.sample_sizes = metrics_cfg["regression_steps"]
 		self.rng = np.random.default_rng(self.seed)
 
 		self.generated_file = self.run_dir / "generated_samples.h5"
@@ -61,16 +78,16 @@ class UnbiasedMetrics:
 
 	def _fit_infinity(
 		self,
-		batch_sizes: list[int],
+		sample_sizes: list[int],
 		values: list[float],
 	):
-		x = (1.0 / np.asarray(batch_sizes)).reshape(-1, 1)
+		x = (1.0 / np.asarray(sample_sizes)).reshape(-1, 1)
 		y = np.asarray(values).reshape(-1, 1)
 
 		reg = LinearRegression().fit(x, y)
 		intercept = float(reg.predict(np.array([[0.0]]))[0, 0])
 
-		n = len(batch_sizes)
+		n = len(sample_sizes)
 		x_flat = x.flatten()
 		x_mean = x_flat.mean()
 		ss_x = np.sum((x_flat - x_mean) ** 2)
@@ -85,15 +102,15 @@ class UnbiasedMetrics:
 
 	def evaluate(self) -> dict:
 		generated = self._load_h5(self.generated_file)
-		real = self._load_h5(self.real_samples_path)
+		real = load_real(self.dataset)
 
 		n_gen = len(generated)
-		batch_sizes = [b for b in self.batch_sizes if b <= n_gen]
+		sample_sizes = [b for b in self.sample_sizes if b <= n_gen]
 
-		if len(batch_sizes) < 3:
+		if len(sample_sizes) < 3:
 			raise ValueError(
 				f"Need at least 3 valid batch sizes. "
-				f"Got {len(batch_sizes)} usable sizes."
+				f"Got {len(sample_sizes)} usable sizes."
 			)
 
 		fids = []
@@ -109,7 +126,7 @@ class UnbiasedMetrics:
 			real_dir = Path(real_dir)
 			write_images(real, real_dir)
 
-			for b in batch_sizes:
+			for b in sample_sizes:
 				idx = self.rng.choice(n_gen, size=b, replace=False)
 				subset = generated[idx]
 
@@ -125,14 +142,14 @@ class UnbiasedMetrics:
 				fids.append(float(metrics["frechet_inception_distance"]))
 				kids.append(float(metrics["kernel_inception_distance_mean"]))
 
-		fid_inf, fid_se, fid_r2 = self._fit_infinity(batch_sizes, fids)
-		kid_inf, kid_se, kid_r2 = self._fit_infinity(batch_sizes, kids)
+		fid_inf, fid_se, fid_r2 = self._fit_infinity(sample_sizes, fids)
+		kid_inf, kid_se, kid_r2 = self._fit_infinity(sample_sizes, kids)
 		return {
 			"run_dir": str(self.run_dir),
-			"real_samples": str(self.real_samples_path),
+			"dataset": str(self.dataset),
 			"num_generated": int(n_gen),
 			"num_real": int(len(real)),
-			"batch_sizes": batch_sizes,
+			"sample_sizes": sample_sizes,
 			"fid_values": fids,
 			"kid_values": kids,
 			"fid_infinity": fid_inf,

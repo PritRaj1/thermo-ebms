@@ -60,8 +60,9 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.training.dataset = "fake32"
 
 	cfg.unbiased_metrics = ConfigDict()
-	cfg.unbiased_metrics.batch_size_to_generate = 100
-	cfg.unbiased_metrics.num_samples = 200
+	cfg.unbiased_metrics.batch_size_to_generate = 50
+	cfg.unbiased_metrics.num_samples = 50
+	cfg.unbiased_metrics.regression_steps = 1000, 1100, 1200
 
 	cfg.logging = ConfigDict()
 	cfg.logging.logdir = "/tmp/"

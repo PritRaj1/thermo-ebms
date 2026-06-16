@@ -26,6 +26,7 @@ gen:
 
 model:
   z_dim = 80
+  seed = 0
 
 thermo:
   num_temps = 10

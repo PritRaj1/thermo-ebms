@@ -23,6 +23,7 @@ CONFIG_KEYS = {
 class KAEM(neuralEBM):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
+		del self.ebm.f
 		kan = BASES[config.kan_prior.basis]
 		params = {
 			k: config.kan_prior[k] for k in CONFIG_KEYS[kan] if k in config.kan_prior
