@@ -104,4 +104,4 @@ class GEN(nnx.Module):
 			return self.loss(x, z_i)
 
 		grad_ll = jax.grad(wrapped_ll)(z)
-		return grad_ll / (2 * self.sigma**2)
+		return - grad_ll / (2 * self.sigma**2)

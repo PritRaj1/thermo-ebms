@@ -49,7 +49,7 @@ class thermoEBM(neuralEBM):
 		x: jax.Array,
 	) -> jax.Array:
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return self.gen.loss(x, z_t)
+			return - self.gen.loss(x, z_t)
 
 		ll = jax.vmap(wrapped_ll)(z)
 		phase = step_idx % 2
@@ -87,17 +87,21 @@ class thermoEBM(neuralEBM):
 		self.adapt_temps(x, z0)
 		return z0
 
-	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
+	def loss(self, x: jax.Array, z: jax.Array, _: jax.Array) -> jax.Array:
 		"""
 		Thermodynamic integration with trapezoidal rule
 
 		1/2 * Σ [ ΔT (E_{z|x,t_i}[ log p_β(x | z) ] + E_{z|x,t_{i-1}}[ log p_β(x | z) ] )
 		"""
 
-		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return self.gen.loss(x, z_t)
+		# Flatten -> unflatten (vmap breaks batchstat mutation in jit)
+		x_gen = self.gen(z.reshape(x.shape[0] * self.num_temps, *z.shape[2:])).reshape(
+			self.num_temps, x.shape[0], *x.shape[1:]
+		)
+		expectations = (
+			((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)).mean(axis=1)
+		)
 
-		expectations = jax.vmap(wrapped_ll)(z_post)
 		delta_t = self.temps[1:] - self.temps[:-1]
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
 		return 0.5 * trapz.sum()
