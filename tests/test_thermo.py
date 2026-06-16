@@ -36,7 +36,7 @@ def test_thermo_loss():
 	key, prior_key, post_key = jax.random.split(key, 3)
 	z_post = jax.random.normal(
 		post_key,
-		(5 * cfg.thermo.num_temps, 1, 1, cfg.model.z_dim),
+		(cfg.thermo.num_temps, 5, 1, 1, cfg.model.z_dim),
 	)
 	z_prior = jax.random.normal(
 		prior_key,

@@ -23,7 +23,7 @@ class neuralEBM(nnx.Module):
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		z0, key = self.mcmc_init(key, N)
-		return self.prior_sampler(key, self.ebm.logprior, z0)
+		return self.prior_sampler(key, self.ebm.prior_score, z0)
 
 	@nnx.jit(static_argnames=("N",))
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:

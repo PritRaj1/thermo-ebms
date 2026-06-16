@@ -1,6 +1,6 @@
 # thermoEBMs
 
-This package hosts jax/orbax/grain utilities for [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf) + [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), (and soon [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)).
+This package hosts jax/orbax/grain utilities and mixed precision training for [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf) + [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), (and soon [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)).
 
 ## Install
 
@@ -19,7 +19,7 @@ The original motivation for this work, (during my 2023/24 [MEng thesis](docs/rep
   <em>Grid of CelebA face samples with LR gradient variance shown beneath each</em>
 </p>
 
-However, the MEng report is old a has some technical inaccuracies! I've learned a lot since undergrad, and the implementation in this package reflects the updated stats of my newer work [KAEM](https://pritraj1.github.io/kaem.html), which offer several major corrections in the learning gradient and TI derivations. 
+However, the MEng report is old a has some technical inaccuracies! I've learned a lot since undergrad, and the implementation in this package reflects the updated stats of my newer work [KAEM](https://pritraj1.github.io/kaem.html), which offer several major corrections in the learning gradient and TI derivations.
 
 In KAEM, TI and annealing are presented as an interpretable, more parallelisable alternative to diffusion modeling to improve mixing in EBMs, ([explained here](https://pritraj1.github.io/defaults.html)).
 

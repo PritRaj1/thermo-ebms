@@ -10,21 +10,31 @@ class GEN(nnx.Module):
 		z_dim: int,
 		rngs: nnx.Rngs,
 	):
-		hidden_dim = gen_config.hidden_dim
+		channels = gen_config.cnn_channels
+		kernel_sizes = gen_config.kernel_sizes
+		strides = gen_config.strides
+		paddings = gen_config.paddings
 		output_dim = gen_config.img_channels
-		image_dim = gen_config.image_res
 		self.sigma = gen_config.gaussian_stddev
+
+		assert len(kernel_sizes) == len(strides) == len(paddings) == len(channels), (
+			f"Config mismatch: "
+			f"len(kernel_sizes)={len(kernel_sizes)}, "
+			f"len(strides)={len(strides)}, "
+			f"len(paddings)={len(paddings)}, "
+			f"len(cnn_channels)={len(channels)}"
+		)
 
 		def act(x: jax.Array) -> jax.Array:
 			return nnx.leaky_relu(x, negative_slope=gen_config.leakyrelu_leak)
 
-		def deconv(cin, cout, stride=2, padding="SAME"):
+		def deconv(cin, cout, k, s, p):
 			return nnx.ConvTranspose(
 				in_features=cin,
 				out_features=cout,
-				kernel_size=(4, 4),
-				strides=(stride, stride),
-				padding=padding,
+				kernel_size=k,
+				strides=s,
+				padding=p,
 				rngs=rngs,
 			)
 
@@ -36,55 +46,62 @@ class GEN(nnx.Module):
 				rngs=rngs,
 			)
 
-		def block(cin, cout):
-			return [
-				deconv(cin, cout),
-				bn(cout),
+		layers = []
+		layers.extend(
+			[
+				deconv(z_dim, channels[0], kernel_sizes[0], strides[0], paddings[0]),
+				bn(channels[0]),
 				act,
 			]
+		)
 
-		layers = [
-			deconv(z_dim, hidden_dim * 16, stride=1, padding="VALID"),
-			bn(hidden_dim * 16),
-			act,
-			*block(hidden_dim * 16, hidden_dim * 8),
-			*block(hidden_dim * 8, hidden_dim * 4),
-		]
-
-		if image_dim == 64:
+		for i in range(len(channels) - 1):
 			layers.extend(
 				[
-					*block(hidden_dim * 4, hidden_dim * 2),
-					deconv(hidden_dim * 2, output_dim),
-					bn(output_dim),
-				]
-			)
-		else:
-			layers.extend(
-				[
-					deconv(hidden_dim * 4, output_dim),
-					bn(output_dim),
+					deconv(
+						channels[i],
+						channels[i + 1],
+						kernel_sizes[i + 1],
+						strides[i + 1],
+						paddings[i + 1],
+					),
+					bn(channels[i + 1]),
+					act,
 				]
 			)
 
-		layers.append(jax.nn.tanh)
+		layers.extend(
+			[
+				deconv(
+					channels[-1],
+					output_dim,
+					kernel_sizes[-1],
+					strides[-1],
+					paddings[-1],
+				),
+				bn(output_dim),
+				jax.nn.tanh,
+			]
+		)
 
 		self.g = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
 		return self.g(z)
 
-	def loglkhood(
+	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
+		"""Gaussian/pixel loss"""
+		return ((x - self(z_post)) ** 2).mean()
+
+	def posterior_score(
 		self,
 		z: jax.Array,
 		x: jax.Array,
 	) -> jax.Array:
-		"""log p(x|z)^t ∝ -t * ||x - g(z)||^2 / (2σ^2)"""
-		diff = x - self(z)
-		sqr_err = diff**2
-		ll = sqr_err / (2 * self.sigma**2)
-		return -ll.sum()
+		"""∇_z log p(x|z)^t ∝ ||x - g(z)||^2 / (2σ^2)"""
 
-	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
-		"""Gaussian/pixel loss"""
-		return ((x - self(z_post)) ** 2).mean()
+		def wrapped_ll(z_i: jax.Array) -> jax.Array:
+			return self.loss(x, z_i)
+
+		grad_ll = jax.grad(wrapped_ll)(z)
+		return grad_ll / (2 * self.sigma**2)

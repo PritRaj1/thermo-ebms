@@ -9,7 +9,7 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.model.z_dim = z_dim
 
 	cfg.ebm = ConfigDict()
-	cfg.ebm.energy_dim = 4
+	cfg.ebm.layer_widths = 200, 200, 1
 	cfg.ebm.leakyrelu_leak = 0.1
 	cfg.ebm.p0_stddev = 1.0
 	cfg.ebm.mcmc_stepsize = 0.01
@@ -21,7 +21,22 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.ebm.lr_beta2 = 0.5
 
 	cfg.gen = ConfigDict()
-	cfg.gen.hidden_dim = 8
+	cfg.gen.cnn_channels = 16, 8, 4
+	cfg.gen.kernel_sizes = (
+		(4, 4),
+		(4, 4),
+		(4, 4),
+	)
+	cfg.gen.strides = (
+		(1, 1),
+		(2, 2),
+		(2, 2),
+	)
+	cfg.gen.paddings = (
+		"VALID",
+		"SAME",
+		"SAME",
+	)
 	cfg.gen.img_channels = 3
 	cfg.gen.image_res = 32
 	cfg.gen.leakyrelu_leak = 0.1

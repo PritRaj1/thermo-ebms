@@ -8,7 +8,6 @@ authors = [
     {name = "Prithvi Raj"}
 ]
 dependencies = [
-    "blackjax>=1.5",
     "flax>=0.12.7",
     "grain>=0.2.17",
     "importlib-resources>=7.1.0",

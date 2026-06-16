@@ -21,17 +21,18 @@ class thermoEBM(neuralEBM):
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
 
-	def expanded_ll(self, x: jax.Array, z: jax.Array) -> jax.Array:
-		x_gen = self.gen(z).reshape(self.num_temps, x.shape[1], *x.shape[2:])
-		return ((x - x_gen) ** 2).sum(axis=(2, 3, 4)) / (2 * self.gen.sigma**2)
-
 	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
 		"""
 		Adapt temps by minimising/equalizing KL div between adjacent power posteriors
 
 		KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
 		"""
-		rho = self.expanded_ll(x, z).std(axis=1)
+
+		def wrapped_ll(z_t: jax.Array) -> jax.Array:
+			return jnp.sum((x - self.gen(z_t)) ** 2, axis=(1, 2, 3))
+
+		ll = jax.vmap(wrapped_ll)(z)
+		rho = ll.std(axis=1)
 		cdf = jnp.cumsum(rho)
 		cdf = cdf / cdf[-1]
 		self.temps = jnp.interp(
@@ -47,8 +48,10 @@ class thermoEBM(neuralEBM):
 		step_idx: jax.Array,
 		x: jax.Array,
 	) -> jax.Array:
+		def wrapped_ll(z_t: jax.Array) -> jax.Array:
+			return self.gen.loss(x, z_t)
 
-		ll = self.expanded_ll(x, z).mean(axis=1)
+		ll = jax.vmap(wrapped_ll)(z)
 		phase = step_idx % 2
 		i = self.i_pairs[:, phase]
 		j = self.j_pairs[:, phase]
@@ -64,31 +67,25 @@ class thermoEBM(neuralEBM):
 
 		perm = perm.at[i].set(jnp.where(accept, pj, pi))
 		perm = perm.at[j].set(jnp.where(accept, pi, pj))
-
-		new_z = z.reshape(self.num_temps, x.shape[1], *z.shape[1:])[perm]
-		return new_z.reshape(self.num_temps * x.shape[1], *z.shape[1:])
+		return z[perm]
 
 	def sample_posterior(self, key, x):
-		x = jnp.expand_dims(x, 0)
+		z0, key = self.mcmc_init(key, x.shape[0] * self.num_temps)
+		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
+		t = self.temps[:, None, None, None, None]
 
-		z0, key = self.mcmc_init(key, x.shape[1] * self.num_temps)
+		def wrapped_gradll(z: jax.Array) -> jax.Array:
+			return self.gen.posterior_score(z, x)
 
-		def log_powerpost(z: jax.Array) -> jax.Array:
-			ll = self.expanded_ll(x, z).mean(axis=1)
-			return (self.temps * ll).sum() + self.ebm.logprior(z)
+		def score(z: jax.Array) -> jax.Array:
+			return (t * jax.vmap(wrapped_gradll)(z)).sum() + self.ebm.prior_score(z)
 
 		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
 			return self.replica_xchange(key_i, z_i, idx, x)
 
-		z_post = self.posterior_sampler(key, log_powerpost, z0, xchange)
-
-		self.adapt_temps(x, z_post)
-
-		return z_post.reshape(
-			self.num_temps,
-			x.shape[1],
-			*z0.shape[1:],
-		)
+		z0 = self.posterior_sampler(key, score, z0, xchange)
+		self.adapt_temps(x, z0)
+		return z0
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""
@@ -96,8 +93,11 @@ class thermoEBM(neuralEBM):
 
 		1/2 * Σ [ ΔT (E_{z|x,t_i}[ log p_β(x | z) ] + E_{z|x,t_{i-1}}[ log p_β(x | z) ] )
 		"""
-		x = jnp.expand_dims(x, 0)
+
+		def wrapped_ll(z_t: jax.Array) -> jax.Array:
+			return self.gen.loss(x, z_t)
+
+		expectations = jax.vmap(wrapped_ll)(z_post)
 		delta_t = self.temps[1:] - self.temps[:-1]
-		expectations = self.expanded_ll(x, z_post).mean(axis=1)
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
 		return 0.5 * trapz.sum()

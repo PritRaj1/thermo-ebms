@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import jax
 import jax.numpy as jnp
 from flax import nnx
-import blackjax
 
 from thermo_ebms import neuralEBM
 from utils import make_config
@@ -14,23 +13,25 @@ def run_chain(model, key):
 	model.eval()
 	z0, key = model.mcmc_init(key, 1)
 	key, runkey = jax.random.split(key)
-	kernel = blackjax.mala(model.ebm.logprior, model.prior_sampler.step_size)
-	state = kernel.init(z0)
 
 	def step(carry, _):
-		st, newkey = carry
+		z, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
-		st, _ = kernel.step(subkey, st)
-		return (st, newkey), st
+		eps = jax.random.normal(subkey, z.shape)
+		z += (
+			model.prior_sampler.eta * model.ebm.prior_score(z)
+			+ jnp.sqrt(2 * model.prior_sampler.eta) * eps
+		)
+		return (z, newkey), z
 
-	(_, _), state = jax.lax.scan(
+	(_, _), z = jax.lax.scan(
 		step,
-		(state, runkey),
+		(z0, runkey),
 		xs=None,
 		length=model.prior_sampler.run_iters,
 	)
 
-	return state
+	return z
 
 
 def test_mcmc_plot():
@@ -38,12 +39,10 @@ def test_mcmc_plot():
 	rngs = nnx.Rngs(key)
 
 	cfg = make_config()
-	cfg.ebm.mcmc_burn_in = 20
-	cfg.ebm.mcmc_numsteps = 1000
+	cfg.ebm.mcmc_numsteps = 50
 	model = neuralEBM(cfg, rngs)
-	traj = run_chain(model, key)
-	z = traj.position
-	energy = jax.vmap(lambda zi: model.ebm.logprior(zi))(z)
+	z = run_chain(model, key)
+	energy = jax.vmap(model.ebm.prior_score)(z)
 
 	os.makedirs("debug_plots", exist_ok=True)
 
