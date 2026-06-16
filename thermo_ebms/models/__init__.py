@@ -1,4 +1,4 @@
-from .ebm_fcnn import EBM
+from .ebm_dense import EBM
 from .gen_cnn import GEN
 from .sampling import mcmc_sampler
 from .base import neuralEBM

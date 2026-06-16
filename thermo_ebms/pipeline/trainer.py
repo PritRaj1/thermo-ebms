@@ -10,7 +10,7 @@ import h5py
 import yaml
 
 from .loaders import get_loaders
-from ..networks import mleEBM, thermoEBM
+from ..models import mleEBM, thermoEBM
 from .opt import coupled_opt
 from .jit import gen, eval_step, train_step
 
