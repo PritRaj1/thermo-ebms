@@ -50,6 +50,11 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.gen.lr_beta1 = 0.999
 	cfg.gen.lr_beta2 = 0.5
 
+	cfg.kan_prior = ConfigDict()
+	cfg.kan_prior.basis = "rbf"
+	cfg.kan_prior.kernel = "gaussian"
+	cfg.kan_prior.mixture = True
+
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps
 	cfg.thermo.xchange_every = 2
