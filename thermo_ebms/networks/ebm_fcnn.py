@@ -1,9 +1,13 @@
 import jax
+import jax.numpy as jnp
 from flax import nnx
 from ml_collections import ConfigDict
 
 
 class EBM(nnx.Module):
+	half_prec: jnp.dtype = jnp.bfloat16
+	full_prec: jnp.dtype = jnp.float32
+
 	def __init__(
 		self,
 		ebm_config: ConfigDict,
@@ -20,7 +24,13 @@ class EBM(nnx.Module):
 		for width in dims:
 			layers.extend(
 				[
-					nnx.Linear(z_dim, width, rngs=rngs),
+					nnx.Linear(
+						z_dim,
+						width,
+						rngs=rngs,
+						param_dtype=self.full_prec,
+						dtype=self.half_prec,
+					),
 					act,
 				]
 			)
@@ -29,7 +39,8 @@ class EBM(nnx.Module):
 		self.f = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
-		return self.f(z)
+		z = z.astype(self.half_prec)
+		return self.f(z).astype(self.full_prec)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		return self.f(z).sum()

@@ -1,9 +1,13 @@
 import jax
+import jax.numpy as jnp
 from flax import nnx
 from ml_collections import ConfigDict
 
 
 class GEN(nnx.Module):
+	half_prec: jnp.dtype = jnp.bfloat16
+	full_prec: jnp.dtype = jnp.float32
+
 	def __init__(
 		self,
 		gen_config: ConfigDict,
@@ -36,6 +40,8 @@ class GEN(nnx.Module):
 				strides=s,
 				padding=p,
 				rngs=rngs,
+				param_dtype=self.full_prec,
+				dtype=self.half_prec,
 			)
 
 		def bn(c):
@@ -44,6 +50,8 @@ class GEN(nnx.Module):
 				momentum=0.9,
 				epsilon=1e-5,
 				rngs=rngs,
+				param_dtype=self.full_prec,
+				dtype=self.half_prec,
 			)
 
 		layers = []
@@ -87,7 +95,8 @@ class GEN(nnx.Module):
 		self.g = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
-		return self.g(z)
+		z = z.astype(self.half_prec)
+		return self.g(z).astype(self.full_prec)
 
 	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
 		"""Gaussian/pixel loss"""
@@ -104,4 +113,4 @@ class GEN(nnx.Module):
 			return self.loss(x, z_i)
 
 		grad_ll = jax.grad(wrapped_ll)(z)
-		return - grad_ll / (2 * self.sigma**2)
+		return -grad_ll / (2 * self.sigma**2)

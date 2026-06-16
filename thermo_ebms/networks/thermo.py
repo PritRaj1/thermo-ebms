@@ -49,7 +49,7 @@ class thermoEBM(neuralEBM):
 		x: jax.Array,
 	) -> jax.Array:
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return - self.gen.loss(x, z_t)
+			return -self.gen.loss(x, z_t)
 
 		ll = jax.vmap(wrapped_ll)(z)
 		phase = step_idx % 2
