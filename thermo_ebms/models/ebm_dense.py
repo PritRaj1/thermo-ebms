@@ -52,4 +52,4 @@ class EBM(nnx.Module):
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
-		return self.en(z_post) - self.en(z_prior)
+		return (self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]
