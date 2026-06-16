@@ -1,6 +1,10 @@
 # thermoEBMs
 
-This package hosts jax/orbax/grain utilities and mixed precision training for [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf) + [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722), (and soon [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)).
+This package hosts jax/orbax/grain utilities and mixed precision training for:
+
+- [latent-space EBMs](https://proceedings.neurips.cc/paper_files/paper/2020/file/fa3060edb66e6ff4507886f9912e1ab9-Paper.pdf)
+- [Thermodynamic Integration (TI)](https://www.sciencedirect.com/science/article/pii/S0167947309002722)
+- [Kolmgorov-Arnold Energy Models (KAEM)](https://arxiv.org/abs/2506.14167)
 
 ## Install
 

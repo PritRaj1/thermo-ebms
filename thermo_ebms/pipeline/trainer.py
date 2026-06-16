@@ -26,8 +26,9 @@ class ebmTrainer:
 	def __init__(
 		self,
 		config: ConfigDict,
-		rngs: nnx.Rngs,
 	):
+		key = jax.random.PRNGKey(config.model.seed)
+		rngs = nnx.Rngs(params=key)
 		self.model = (
 			thermoEBM(config, rngs)
 			if config.thermo.num_temps > 1

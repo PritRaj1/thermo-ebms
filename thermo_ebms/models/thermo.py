@@ -4,6 +4,7 @@ from flax import nnx
 from ml_collections import ConfigDict
 
 from .base import neuralEBM
+from .kaem import KAEM
 
 
 def build_pairs(T, offset):
@@ -11,7 +12,7 @@ def build_pairs(T, offset):
 	return jnp.stack([idx, idx + 1], axis=1)
 
 
-class thermoEBM(neuralEBM):
+class _Thermo:
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		self.num_temps = config.thermo.num_temps
@@ -105,3 +106,11 @@ class thermoEBM(neuralEBM):
 		delta_t = self.temps[1:] - self.temps[:-1]
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
 		return 0.5 * trapz.sum()
+
+
+class thermoEBM(_Thermo, neuralEBM):
+	pass
+
+
+class thermoKAEM(_Thermo, KAEM):
+	pass

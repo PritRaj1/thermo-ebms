@@ -14,6 +14,7 @@ dependencies = [
     "jax[cuda12]>=0.10.1",
     "numpy>=2.4.6",
     "ml-collections>=1.1.0",
+    "jaxkan>=0.3.7",
 ]
 
 [project.optional-dependencies]

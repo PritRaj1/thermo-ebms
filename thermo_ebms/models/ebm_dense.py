@@ -43,7 +43,7 @@ class EBM(nnx.Module):
 		return self.f(z).astype(self.full_prec)
 
 	def en(self, z: jax.Array) -> jax.Array:
-		return self.f(z).sum()
+		return self(z).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		"""∇_z log(p_α(z)) ∝ ∇_z f(z) - 0.5 * ||z||^2 / σ^2"""
