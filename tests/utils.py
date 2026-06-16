@@ -55,8 +55,8 @@ def make_config(z_dim=8, num_temps=4):
 
 	cfg.training = ConfigDict()
 	cfg.training.epochs = 1
-	cfg.training.batch_size = 128
-	cfg.training.dataset = "cifar10"
+	cfg.training.batch_size = 32
+	cfg.training.dataset = "fake32"
 
 	cfg.unbiased_metrics = ConfigDict()
 	cfg.unbiased_metrics.batch_size_to_generate = 100

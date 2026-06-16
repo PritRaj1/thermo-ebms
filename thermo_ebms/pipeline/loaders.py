@@ -5,10 +5,18 @@ from ml_collections import ConfigDict
 from typing import Any
 
 
+def test_data():
+	return [
+		{"image": np.random.randint(0, 256, size=(32, 32, 3), dtype=np.uint8)}
+		for _ in range(50)
+	]
+
+
 def get_dataloader(name: str, split: str, batch_size: int) -> grain.IterDataset:
 	"""Helper to build a single grain dataset."""
 	is_training = split == "train"
-	source = tfds.data_source(name, split=split)
+	source = test_data() if name == "fake32" else tfds.data_source(name, split=split)
+
 	ds = grain.MapDataset.source(source)
 
 	if is_training:
@@ -30,7 +38,9 @@ def get_loaders(data_config: ConfigDict) -> tuple[grain.IterDataset, grain.IterD
 	train_loader = get_dataloader(name, "train", batch_size)
 	test_loader = get_dataloader(name, "test", batch_size)
 
-	bldr = tfds.builder(name)
-	num_examples = bldr.info.splits["train"].num_examples
+	num_examples = 500
+	if name != "fake32":
+		bldr = tfds.builder(name)
+		num_examples = bldr.info.splits["train"].num_examples
 
 	return train_loader, test_loader, num_examples // batch_size

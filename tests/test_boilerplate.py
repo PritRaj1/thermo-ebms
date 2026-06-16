@@ -1,17 +1,11 @@
 import jax
 from flax import nnx
 import orbax.checkpoint as ocp
-import pytest
-import os
 
 from thermo_ebms.pipeline import ebmTrainer
 from utils import make_config
 
 
-@pytest.mark.skipif(
-	os.environ.get("RUN_ALL") != "1",
-	reason="skip expensive trainer test",
-)
 def test_logdir(tmp_path):
 	cfg = make_config()
 

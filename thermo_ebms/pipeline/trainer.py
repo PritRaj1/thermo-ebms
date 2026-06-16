@@ -138,4 +138,5 @@ class ebmTrainer:
 				dataset[idx : idx + bs] = to_uint8(x)
 				idx += bs
 
+		self.ckpt_manager.wait_until_finished()
 		return key
