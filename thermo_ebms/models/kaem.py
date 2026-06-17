@@ -32,7 +32,7 @@ class KAEM(neuralEBM):
 		self.Q = (self.P - 1) // 2 if self.mixture else 2 * self.P + 1
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.ebm = kanBANK(config, self.P, self.Q)
+		self.ebm.f = kanBANK(config, self.P, self.Q)
 		self.ebm.en = self.energy
 
 		# Gauss–Legendre quadrature for Inverse Transform
@@ -47,14 +47,14 @@ class KAEM(neuralEBM):
 		self.init_gauss()
 
 	def energy(self, z: jax.Array) -> jax.Array():
-		return self.ebm(z.squeeze())[self.component].sum()
+		return self.ebm.f(z.squeeze())[self.component].sum()
 
 	def init_gauss(self):
 		"""Adapt Gauss-Legendre integration domain"""
-		if hasattr(self.ebm.layers[0], "grid"):
+		if hasattr(self.ebm.f.layers[0], "grid"):
 			nodes, weights = [], []
 
-			for layer in self.ebm.layers:
+			for layer in self.ebm.f.layers:
 				n, w = get_gauss(layer, self.P, self.numquad)
 				nodes.append(n)
 				weights.append(w)
@@ -64,8 +64,13 @@ class KAEM(neuralEBM):
 
 	def udpate_grid(self, z: jax.Array) -> None:
 		"""KAN grid adaption using least squares"""
-		self.ebm.kan.update_grid(z, self.numgrid)
+		self.ebm.f.kan.update_grid(z, self.numgrid)
 		self.init_gauss()
+
+	def log_p0(self, z: jax.Array) -> jax.Array:
+		"""π_0(z) = N(0, 1)"""
+		sigma = self.ebm.sigma
+		return -0.5 * (z / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
 		"""Sample uniformly from Categorical(1:mixture_components)"""
@@ -89,15 +94,16 @@ class KAEM(neuralEBM):
 			self.component[:, None, None, :],
 			axis=2,
 		).squeeze()
-		f *= self.weights[None, :, :]
 
 		key, subkey = jax.random.split(key)
 		u = jax.random.uniform(subkey, shape=(N, self.P))
+
+		pdf = jnp.exp(f + self.log_p0(self.nodes)[None, :, :])
+		pdf *= self.weights[None, :, :]
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(f, axis=1)
 		cdf /= cdf[:, -1:, :] + 1e-12
 
 		z = jax.vmap(self.interpolate_bins, in_axes=(0, 0))(u, cdf)
-
 		return z[:, None, None, :]
