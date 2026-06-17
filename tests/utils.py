@@ -8,6 +8,7 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.model = ConfigDict()
 	cfg.model.z_dim = z_dim
 	cfg.model.seed = 0
+	cfg.model.base = "kaem"
 
 	cfg.ebm = ConfigDict()
 	cfg.ebm.layer_widths = 200, 200, 1

@@ -10,7 +10,7 @@ import h5py
 import yaml
 
 from .loaders import get_loaders
-from ..models import mleEBM, thermoEBM
+from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from .opt import coupled_opt
 from .jit import gen, eval_step, train_step
 
@@ -29,12 +29,15 @@ class ebmTrainer:
 	):
 		key = jax.random.PRNGKey(config.model.seed)
 		rngs = nnx.Rngs(params=key)
-		self.model = (
-			thermoEBM(config, rngs)
-			if config.thermo.num_temps > 1
-			else mleEBM(config, rngs)
-		)
 
+		model_cls = {
+			("neural", True): thermoEBM,
+			("neural", False): mleEBM,
+			("kaem", True): thermoKAEM,
+			("kaem", False): mleKAEM,
+		}[(config.model.base.lower(), config.thermo.num_temps > 1)]
+
+		self.model = model_cls(config, rngs)
 		self.train_loader, self.test_loader, updates_per_epoch = get_loaders(
 			config.training
 		)
