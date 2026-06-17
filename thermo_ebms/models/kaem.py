@@ -8,6 +8,19 @@ from .base import neuralEBM
 from .kan import kanBANK
 
 
+def get_gauss(
+	layer_p: nnx.Module, P: int, quad_degree: int
+) -> tuple[jax.Array, jax.Array]:
+	nodes, weights = leggauss(quad_degree)
+	nodes, weights = jnp.array(nodes), jnp.array(weights)
+
+	grid = layer_p.grid.item
+	a, b = grid.min(), grid.max()
+	nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
+	weights = weights * 0.5 * (b - a)
+	return nodes, weights
+
+
 class KAEM(neuralEBM):
 	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
@@ -23,45 +36,68 @@ class KAEM(neuralEBM):
 		self.ebm.en = self.energy
 
 		# Gauss–Legendre quadrature for Inverse Transform
-		self.quad_degree = config.kan_prior.quadrature_degree
-		self.numgrid = config.kan_prior.grid_number
-		self.init_gauss()
-
-	def energy(self, z: jax.Array) -> jax.Array():
-		return self.choose_component(self.ebm(z.squeeze())).sum()
-
-	def init_gauss(self):
-		"""Adapt Gauss-Legendre integration domain"""
-		nodes, weights = leggauss(self.quad_degree)
+		self.numquad = config.kan_prior.numquad
+		self.numgrid = config.kan_prior.numgrid
+		nodes, weights = leggauss(self.numquad)
 		self.nodes, self.weights = (
 			jnp.repeat(jnp.expand_dims(jnp.array(nodes), axis=1), self.P, axis=1),
 			jnp.repeat(jnp.expand_dims(jnp.array(weights), axis=1), self.P, axis=1),
 		)
 
-		if hasattr(self.ebm.kan, "grid"):
-			grid = self.ebm.kan.grid.item
-			a, b = grid.min(), grid.max()
-			self.nodes = 0.5 * (b - a) * self.nodes + 0.5 * (a + b)
-			self.weights = self.weights * 0.5 * (b - a)
+		self.init_gauss()
+
+	def energy(self, z: jax.Array) -> jax.Array():
+		return self.ebm(z.squeeze())[self.component].sum()
+
+	def init_gauss(self):
+		"""Adapt Gauss-Legendre integration domain"""
+		if hasattr(self.ebm.layers[0], "grid"):
+			nodes, weights = [], []
+
+			for layer in self.ebm.layers:
+				n, w = get_gauss(layer, self.P, self.numquad)
+				nodes.append(n)
+				weights.append(w)
+
+			self.nodes = jnp.stack(nodes, axis=-1)
+			self.weights = jnp.stack(weights, axis=-1)
 
 	def udpate_grid(self, z: jax.Array) -> None:
 		"""KAN grid adaption using least squares"""
 		self.ebm.kan.update_grid(z, self.numgrid)
 		self.init_gauss()
 
-	def sample_mixture(self, key: jax.Array, N: int) -> None:
+	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
 		"""Sample uniformly from Categorical(1:mixture_components)"""
 		key, subkey = jax.random.split(key)
 		self.component = (
-			jax.random.randint(key, shape=N, minval=0, maxval=self.P)
+			jax.random.randint(key, shape=(N, self.P), minval=0, maxval=self.Q)
 			if self.mixture
 			else jnp.arange(self.Q)
 		)
+		return key
 
-	def choose_component(self, z: jax.Array) -> jax.Array:
-		"""Select mixture component to sample from"""
-		return z[jnp.arange(z.shape[0]), self.component, :]
+	def interpolate_bins(self, u_p: jax.Array, cdf_p: jax.Array) -> jax.Array:
+		"""Interpolate for each P"""
+		return jax.vmap(jnp.interp, in_axes=(0, 1, 1))(u_p, cdf_p, self.nodes)
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
-		self.sample_mixture()
+		key = self.sample_mixture(key, N)
+		f = jnp.take_along_axis(
+			self.ebm(self.nodes)[None, :, :, :],
+			self.component[:, None, None, :],
+			axis=2,
+		).squeeze()
+		f *= self.weights[None, :, :]
+
+		key, subkey = jax.random.split(key)
+		u = jax.random.uniform(subkey, shape=(N, self.P))
+
+		# Cumulative density via Gauss-Legendre integral
+		cdf = jnp.cumsum(f, axis=1)
+		cdf /= cdf[:, -1:, :] + 1e-12
+
+		z = jax.vmap(self.interpolate_bins, in_axes=(0, 0))(u, cdf)
+
+		return z[:, None, None, :]

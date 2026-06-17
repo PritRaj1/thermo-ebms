@@ -3,6 +3,7 @@ from .gen_cnn import GEN
 from .kan import kanBANK
 from .sampling import mcmc_sampler
 from .base import neuralEBM
+from .kaem import KAEM
 from .mle import mleEBM, mleKAEM
 from .thermo import thermoEBM, thermoKAEM
 
@@ -12,8 +13,9 @@ __all__ = [
 	"kanBANK",
 	"mcmc_sampler",
 	"neuralEBM",
+	"KAEM",
 	"mleEBM",
-	"thermoEBM",
 	"mleKAEM",
+	"thermoEBM",
 	"thermoKAEM",
 ]

@@ -54,6 +54,8 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.kan_prior.basis = "rbf"
 	cfg.kan_prior.kernel = "gaussian"
 	cfg.kan_prior.mixture = True
+	cfg.kan_prior.numquad = 25
+	cfg.kan_prior.numgrid = 10
 
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps
