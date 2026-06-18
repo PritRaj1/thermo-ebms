@@ -24,6 +24,13 @@ gen:
   lr_beta1 = 0.999
   lr_beta2 = 0.5
 
+kaem:
+  basis = "rbf"
+  kernel = "gaussian"
+  mixture = True
+  numquad = 25
+  numgrid = 10
+
 model:
   z_dim = 80
   seed = 0

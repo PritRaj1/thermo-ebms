@@ -26,28 +26,23 @@ class KAEM(neuralEBM):
 		super().__init__(config, rngs)
 		del self.ebm.f
 
-		# Kolmogorov-Arnold Theorem width choices
-		self.mixture = config.kan_prior.mixture
-		self.P = config.model.z_dim
-		self.Q = (self.P - 1) // 2 if self.mixture else 2 * self.P + 1
-
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.ebm.f = kanBANK(config, self.P, self.Q)
+		self.ebm.f = kanBANK(config.kaem, self.z_dim, config.model.seed)
 		self.ebm.en = self.energy
 
 		# Gauss–Legendre quadrature for Inverse Transform
-		self.numquad = config.kan_prior.numquad
-		self.numgrid = config.kan_prior.numgrid
+		self.numquad = config.kaem.numquad
+		self.numgrid = config.kaem.numgrid
 		nodes, weights = leggauss(self.numquad)
 		self.nodes, self.weights = (
-			jnp.repeat(jnp.expand_dims(jnp.array(nodes), axis=1), self.P, axis=1),
-			jnp.repeat(jnp.expand_dims(jnp.array(weights), axis=1), self.P, axis=1),
+			jnp.repeat(jnp.expand_dims(jnp.array(nodes), axis=1), self.z_dim, axis=1),
+			jnp.repeat(jnp.expand_dims(jnp.array(weights), axis=1), self.z_dim, axis=1),
 		)
 
 		self.init_gauss()
 
 	def energy(self, z: jax.Array) -> jax.Array():
-		return self.ebm.f(z.squeeze())[self.component].sum()
+		return jnp.take_along_axis(self.ebm.f(z), self.component, axis=1).sum()
 
 	def init_gauss(self):
 		"""Adapt Gauss-Legendre integration domain"""
@@ -55,7 +50,7 @@ class KAEM(neuralEBM):
 			nodes, weights = [], []
 
 			for layer in self.ebm.f.layers:
-				n, w = get_gauss(layer, self.P, self.numquad)
+				n, w = get_gauss(layer, self.z_dim, self.numquad)
 				nodes.append(n)
 				weights.append(w)
 
@@ -74,36 +69,63 @@ class KAEM(neuralEBM):
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
 		"""Sample uniformly from Categorical(1:mixture_components)"""
-		key, subkey = jax.random.split(key)
-		self.component = (
-			jax.random.randint(key, shape=(N, self.P), minval=0, maxval=self.Q)
-			if self.mixture
-			else jnp.arange(self.Q)
-		)
+		self.component = jnp.arange(self.ebm.f.Q)[None, :, None]
+		if self.ebm.f.mixture:
+			key, subkey = jax.random.split(key)
+			self.component = jax.random.randint(
+				subkey,
+				shape=(N, 1, self.z_dim),
+				minval=0,
+				maxval=self.ebm.f.Q,
+			)
+
 		return key
 
-	def interpolate_bins(self, u_p: jax.Array, cdf_p: jax.Array) -> jax.Array:
-		"""Interpolate for each P"""
-		return jax.vmap(jnp.interp, in_axes=(0, 1, 1))(u_p, cdf_p, self.nodes)
+	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
+		"""Batched inversion; u: (N, Q, P, -1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
+		idx = jnp.sum(
+			cdf <= u, axis=-1, keepdims=True
+		)  # [first cdf > u] == [count num cdf <= u]
+		idx0 = idx.clip(min=0, max=cdf.shape[-1] - 2)
+		idx1 = idx0 + 1
+
+		# Quadrature bin bounds
+		nodes = jnp.broadcast_to(
+			self.nodes.T[None, None, :, :],
+			(u.shape[0], 1, self.z_dim, self.nodes.shape[0]),
+		)
+		cdf0 = jnp.take_along_axis(cdf, idx0, axis=-1).squeeze(-1)
+		cdf1 = jnp.take_along_axis(cdf, idx1, axis=-1).squeeze(-1)
+		z0 = jnp.take_along_axis(nodes, idx0, axis=-1).squeeze(-1)
+		z1 = jnp.take_along_axis(nodes, idx1, axis=-1).squeeze(-1)
+
+		# Interpolate within bin
+		t = (u.squeeze(-1) - cdf0) / (cdf1 - cdf0 + 1e-12)
+		return z0 + t * (z1 - z0)
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
 		key = self.sample_mixture(key, N)
+		inner_dim = 1 if self.ebm.f.mixture else self.ebm.f.Q
+
+		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q
 		f = jnp.take_along_axis(
-			self.ebm(self.nodes)[None, :, :, :],
-			self.component[:, None, None, :],
+			self.ebm(nodes)[None, :, :, :],  # Unsqueeze num_samples
+			self.component[:, None, :, :],  # Unsqueeze N_quad
 			axis=2,
-		).squeeze()
+		)
 
 		key, subkey = jax.random.split(key)
-		u = jax.random.uniform(subkey, shape=(N, self.P))
+		u = jax.random.uniform(subkey, shape=(N, inner_dim, self.z_dim, 1))
 
-		pdf = jnp.exp(f + self.log_p0(self.nodes)[None, :, :])
-		pdf *= self.weights[None, :, :]
+		pdf = jnp.exp(f + self.log_p0(self.nodes)[None, :, None, :])
+		pdf *= self.weights[None, :, None, :]
 
 		# Cumulative density via Gauss-Legendre integral
-		cdf = jnp.cumsum(f, axis=1)
-		cdf /= cdf[:, -1:, :] + 1e-12
+		cdf = jnp.cumsum(pdf, axis=1)
+		cdf /= cdf[:, -1:, :, :] + 1e-12
 
-		z = jax.vmap(self.interpolate_bins, in_axes=(0, 0))(u, cdf)
-		return z[:, None, None, :]
+		z = self.invert_cdf(u, cdf.transpose(0, 2, 3, 1))
+
+		q = jnp.arange(inner_dim)
+		return z[:, None, q, :]

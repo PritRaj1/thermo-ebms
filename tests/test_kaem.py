@@ -15,4 +15,5 @@ def test_sample_prior_shape():
 	N = 10
 	z = model.sample_prior(key, N)
 
-	assert z.shape == (N, 1, 1, model.z_dim)
+	inner_dim = 1 if config.kaem.mixture else model.ebm.f.Q
+	assert z.shape == (N, 1, inner_dim, model.z_dim)

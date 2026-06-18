@@ -51,12 +51,12 @@ def make_config(z_dim=8, num_temps=4):
 	cfg.gen.lr_beta1 = 0.999
 	cfg.gen.lr_beta2 = 0.5
 
-	cfg.kan_prior = ConfigDict()
-	cfg.kan_prior.basis = "rbf"
-	cfg.kan_prior.kernel = "gaussian"
-	cfg.kan_prior.mixture = True
-	cfg.kan_prior.numquad = 25
-	cfg.kan_prior.numgrid = 10
+	cfg.kaem = ConfigDict()
+	cfg.kaem.basis = "rbf"
+	cfg.kaem.kernel = "gaussian"
+	cfg.kaem.mixture = True
+	cfg.kaem.numquad = 25
+	cfg.kaem.numgrid = 10
 
 	cfg.thermo = ConfigDict()
 	cfg.thermo.num_temps = num_temps
