@@ -7,13 +7,17 @@ from .kaem import KAEM
 
 class _MLE:
 	@nnx.jit
-	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
+	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		z0, key = self.mcmc_init(key, x.shape[0])
 
 		def score(z: jax.Array) -> jax.Array:
 			return self.gen.posterior_score(z, x) + self.ebm.prior_score(z)
 
 		return self.posterior_sampler(key, score, z0)
+
+	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
+		self.eval()
+		return self._sample_posterior(key, x)
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		return self.gen.loss(x, z_post)

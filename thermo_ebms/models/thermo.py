@@ -22,7 +22,8 @@ class _Thermo:
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
 
-	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
+	@nnx.jit
+	def _adapt_temps(self, x: jax.Array, z: jax.Array) -> jax.Array:
 		"""
 		        Adapt temps by minimising/equalizing KL div between adjacent power posteriors
 		Called outside JIT
@@ -37,11 +38,15 @@ class _Thermo:
 		rho = ll.std(axis=1)
 		cdf = jnp.cumsum(rho)
 		cdf = cdf / cdf[-1]
-		self.temps = jnp.interp(
+		return jnp.interp(
 			jnp.linspace(0, 1, self.num_temps),
 			cdf,
 			self.temps,
 		)
+
+	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
+		self.eval()
+		self.temps = self._adapt_temps(x, z)
 
 	def replica_xchange(
 		self,
@@ -72,7 +77,7 @@ class _Thermo:
 		return z[perm]
 
 	@nnx.jit
-	def sample_posterior(self, key, x):
+	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		z0, key = self.mcmc_init(key, x.shape[0] * self.num_temps)
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
 		t = self.temps[:, None, None, None, None]
@@ -88,6 +93,23 @@ class _Thermo:
 
 		z0 = self.posterior_sampler(key, score, z0, xchange)
 		return z0
+
+	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
+		self.eval()
+
+		# Expand chosen mixture component to all temps
+		mixture_component = None
+		if self.base == "kaem":
+			mixture_component = self.component
+			self.component = jnp.repeat(self.component, self.num_temps, axis=0)
+
+		z = self._sample_posterior(key, x)
+
+		# Contract back
+		if self.base == "kaem":
+			self.component = mixture_component
+
+		return z
 
 	def loss(self, x: jax.Array, z: jax.Array, _: jax.Array) -> jax.Array:
 		"""

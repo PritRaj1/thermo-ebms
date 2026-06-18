@@ -12,7 +12,7 @@ import yaml
 from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from .opt import coupled_opt
-from .jit import gen, eval_step, train_step
+from .jit import eval_step, train_step
 from ..config import Config
 
 
@@ -97,7 +97,7 @@ class ebmTrainer:
 			)
 
 		if train_idx % self.sample_every == 0:
-			x, key = gen(self.model, self.num_samples, key)
+			x, key = self.model(key, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": x})
 
 		self.ckpt_manager.save(
@@ -121,7 +121,7 @@ class ebmTrainer:
 		self.writer.flush()
 
 		with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
-			x, key = gen(self.model, self.final_bsize, key)
+			x, key = self.model(key, self.final_bsize)
 
 			dataset = f.create_dataset(
 				"samples",
@@ -139,7 +139,7 @@ class ebmTrainer:
 			idx = len(x)
 			while idx < self.final_samples:
 				bs = min(self.final_bsize, self.final_samples - idx)
-				x, key = gen(self.model, bs, key)
+				x, key = self.model(key, bs)
 				dataset[idx : idx + bs] = to_uint8(x)
 				idx += bs
 

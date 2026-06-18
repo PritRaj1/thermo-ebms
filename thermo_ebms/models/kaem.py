@@ -107,7 +107,7 @@ class KAEM(neuralEBM):
 		return z0 + t * (z1 - z0)
 
 	@nnx.jit(static_argnames=("N",))
-	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
+	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
 		inner_dim = 1 if self.ebm.f.mixture else self.ebm.f.Q
 
@@ -132,3 +132,13 @@ class KAEM(neuralEBM):
 
 		q = jnp.arange(inner_dim)
 		return z[:, None, q, :]
+
+	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
+		self.eval()
+		key = self.sample_mixture(key, N)
+		return self._sample_prior(key, N)
+
+	def __call__(self, key: jax.Array, N: int) -> jax.Array:
+		self.eval()
+		key = self.sample_mixture(key, N)
+		return self._fwd(key, N)

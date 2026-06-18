@@ -24,12 +24,20 @@ class neuralEBM(nnx.Module):
 		return z0, key
 
 	@nnx.jit(static_argnames=("N",))
-	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
+	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		z0, key = self.mcmc_init(key, N)
 		return self.prior_sampler(key, self.ebm.prior_score, z0)
 
+	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
+		self.eval()
+		return self._sample_prior(key, N)
+
 	@nnx.jit(static_argnames=("N",))
-	def __call__(self, key: jax.Array, N: int) -> jax.Array:
+	def _fwd(self, key: jax.Array, N: int) -> jax.Array:
 		key, subkey = jax.random.split(key)
 		z = self.sample_prior(key, N)
 		return self.gen(z), key
+
+	def __call__(self, key: jax.Array, N: int) -> jax.Array:
+		self.eval()
+		return self._fwd(key, N)
