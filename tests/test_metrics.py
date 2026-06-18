@@ -1,6 +1,7 @@
 import yaml
 import h5py
 import numpy as np
+from omegaconf import OmegaConf
 
 from thermo_ebms.pipeline import UnbiasedMetrics
 from utils import make_config
@@ -17,7 +18,7 @@ def test_metrics(tmp_path):
 	out_json_path = run_dir / "metrics_output.json"
 
 	with open(config_path, "w") as f:
-		yaml.safe_dump(cfg.to_dict(), f)
+		yaml.safe_dump(OmegaConf.to_container(cfg, resolve=True), f)
 
 	mock_samples = np.random.randint(0, 256, size=(2000, 32, 32, 3), dtype=np.uint8)
 	with h5py.File(h5_path, "w") as f:

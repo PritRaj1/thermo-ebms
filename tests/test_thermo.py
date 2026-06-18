@@ -11,15 +11,15 @@ x = make_x(batch=5)
 
 def test_shape():
 	key = jax.random.key(0)
-	model = thermoEBM(cfg, nnx.Rngs(key))
+	model = thermoEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 	z = model.sample_posterior(key, x)
-	assert z.shape == (cfg.thermo.num_temps, 5, 1, 1, cfg.model.z_dim)
+	assert z.shape == (cfg.model.thermo.num_temps, 5, 1, 1, cfg.model.z_dim)
 
 
 def test_sampling():
 	key = jax.random.key(0)
-	model = thermoEBM(cfg, nnx.Rngs(key))
+	model = thermoEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 	z = model.sample_posterior(key, x)
 
@@ -30,13 +30,13 @@ def test_sampling():
 
 def test_thermo_loss():
 	key = jax.random.key(0)
-	model = thermoEBM(cfg, nnx.Rngs(key))
+	model = thermoEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
 	key, prior_key, post_key = jax.random.split(key, 3)
 	z_post = jax.random.normal(
 		post_key,
-		(cfg.thermo.num_temps, 5, 1, 1, cfg.model.z_dim),
+		(cfg.model.thermo.num_temps, 5, 1, 1, cfg.model.z_dim),
 	)
 	z_prior = jax.random.normal(
 		prior_key,

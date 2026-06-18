@@ -1,14 +1,14 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
-from collections.abc import Callable
+
+from ..config import MCMCConfig, ThermoConfig, ScoreFn, XchangeFn
 
 
 class mcmc_sampler(nnx.Module):
-	def __init__(self, config: ConfigDict, xchange_conf: ConfigDict = None):
-		self.eta = config.mcmc_stepsize
-		self.run_iters = config.mcmc_numsteps
+	def __init__(self, config: MCMCConfig, xchange_conf: ThermoConfig | None = None):
+		self.eta = config.stepsize
+		self.run_iters = config.numsteps
 		self.xchange_every = -1
 
 		if xchange_conf is not None:
@@ -19,11 +19,11 @@ class mcmc_sampler(nnx.Module):
 	def __call__(
 		self,
 		key: jax.Array,
-		score: Callable[[jax.Array], jax.Array],
+		score: ScoreFn,
 		z0: jax.Array,
-		xchange_func: Callable[[jax.Array, jax.Array], jax.Array] = None,
+		xchange_func: XchangeFn | None = None,
 	):
-		xchange_bool = (self.xchange_every > 0) & (xchange_func is not None)
+		xchange_bool = (self.xchange_every > 0) and (xchange_func is not None)
 		key, runkey = jax.random.split(key)
 
 		def step(carry, idx):
@@ -38,7 +38,7 @@ class mcmc_sampler(nnx.Module):
 					return xchange_func(newkey, states, idx)
 
 				z = jax.lax.cond(
-					xchange_bool & (idx % self.xchange_every == 0),
+					(idx % self.xchange_every == 0),
 					swap,
 					lambda s: s,
 					z,

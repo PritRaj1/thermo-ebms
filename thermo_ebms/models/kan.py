@@ -1,8 +1,9 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
 from jaxkan import layers
+
+from ..config import KANConfig
 
 BASES = {
 	"rbf": layers.RBFLayer,
@@ -11,26 +12,26 @@ BASES = {
 	"fourier": layers.FourierLayer,
 }
 
-CONFIG_KEYS = {
-	"rbf": ["sigma", "centers"],
-	"spline": ["k", "G"],
-	"chebyshev": ["degree"],
-	"fourier": ["modes"],
-}
-
 
 class kanBANK(nnx.Module):
 	"""KAN module with no inner sum"""
 
-	def __init__(self, config: ConfigDict, P: int, seed0: int):
-		self.mixture = config.mixture
+	def __init__(self, config: KANConfig, mixture: bool, P: int, seed0: int):
+		self.mixture = mixture
+
+		if config.basis not in BASES:
+			raise ValueError(f"Unknown jaxkan basis: {config.basis}")
+
+		basis_cfg = getattr(config, config.basis)
+		if basis_cfg is None:
+			raise ValueError(f"Missing config for basis: {config.basis}")
 
 		# Kolmogorov-Arnold Theorem width choices, n -> 2n+1
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
 		kan = BASES[config.basis]
-		params = {k: config[k] for k in CONFIG_KEYS[config.basis] if k in config}
+		params = dict(basis_cfg)
 		self.layers = nnx.List(
 			[kan(n_in=1, n_out=self.Q, seed=seed0 + k, **params) for k in range(P)]
 		)

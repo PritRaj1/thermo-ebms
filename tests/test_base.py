@@ -10,7 +10,7 @@ cfg = make_config()
 
 def test_sample_prior():
 	key = jax.random.key(0)
-	model = neuralEBM(cfg, nnx.Rngs(key))
+	model = neuralEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
 	N = 4
@@ -21,7 +21,7 @@ def test_sample_prior():
 
 def test_gen():
 	key = jax.random.key(0)
-	model = neuralEBM(cfg, nnx.Rngs(key))
+	model = neuralEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
 	N = 4
@@ -32,7 +32,7 @@ def test_gen():
 
 def test_contrastive_divergence():
 	key = jax.random.key(0)
-	model = neuralEBM(cfg, nnx.Rngs(key))
+	model = neuralEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
 	N = 4

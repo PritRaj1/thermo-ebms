@@ -1,44 +1,27 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
+
+from ..config import GENConfig, ConvBlock
 
 
 class GEN(nnx.Module):
-	half_prec: jnp.dtype = jnp.bfloat16
-	full_prec: jnp.dtype = jnp.float32
+	half_prec = jnp.bfloat16
+	full_prec = jnp.float32
 
-	def __init__(
-		self,
-		gen_config: ConfigDict,
-		z_dim: int,
-		rngs: nnx.Rngs,
-	):
-		channels = gen_config.cnn_channels
-		kernel_sizes = gen_config.kernel_sizes
-		strides = gen_config.strides
-		paddings = gen_config.paddings
-		output_dim = gen_config.img_channels
-		self.sigma = gen_config.gaussian_stddev
+	def __init__(self, config: GENConfig, z_dim: int, rngs: nnx.Rngs):
+		self.sigma = config.gaussian_stddev
 
-		assert len(kernel_sizes) == len(strides) == len(paddings) == len(channels), (
-			f"Config mismatch: "
-			f"len(kernel_sizes)={len(kernel_sizes)}, "
-			f"len(strides)={len(strides)}, "
-			f"len(paddings)={len(paddings)}, "
-			f"len(cnn_channels)={len(channels)}"
-		)
+		def act(x):
+			return nnx.leaky_relu(x, negative_slope=config.leakyrelu_leak)
 
-		def act(x: jax.Array) -> jax.Array:
-			return nnx.leaky_relu(x, negative_slope=gen_config.leakyrelu_leak)
-
-		def deconv(cin, cout, k, s, p):
+		def deconv(cin, block: ConvBlock):
 			return nnx.ConvTranspose(
 				in_features=cin,
-				out_features=cout,
-				kernel_size=k,
-				strides=s,
-				padding=p,
+				out_features=block.channels,
+				kernel_size=(block.kernel_size, block.kernel_size),
+				strides=(block.stride, block.stride),
+				padding=block.padding,
 				rngs=rngs,
 				param_dtype=self.full_prec,
 				dtype=self.half_prec,
@@ -55,46 +38,39 @@ class GEN(nnx.Module):
 			)
 
 		layers = []
-		layers.extend(
-			[
-				deconv(z_dim, channels[0], kernel_sizes[0], strides[0], paddings[0]),
-				bn(channels[0]),
+		first = config.blocks[0]
+		layers += [
+			deconv(z_dim, first),
+			bn(first.channels),
+			act,
+		]
+
+		for prev, block in zip(config.blocks[:-1], config.blocks[1:]):
+			layers += [
+				deconv(prev.channels, block),
+				bn(block.channels),
 				act,
 			]
-		)
 
-		for i in range(len(channels) - 1):
-			layers.extend(
-				[
-					deconv(
-						channels[i],
-						channels[i + 1],
-						kernel_sizes[i + 1],
-						strides[i + 1],
-						paddings[i + 1],
-					),
-					bn(channels[i + 1]),
-					act,
-				]
-			)
-
-		layers.extend(
-			[
-				deconv(
-					channels[-1],
-					output_dim,
-					kernel_sizes[-1],
-					strides[-1],
-					paddings[-1],
+		last = config.blocks[-1]
+		layers += [
+			deconv(
+				last.channels,
+				ConvBlock(
+					channels=config.img_channels,
+					kernel_size=last.kernel_size,
+					stride=last.stride,
+					padding=last.padding,
 				),
-				bn(output_dim),
-				jax.nn.tanh,
-			]
-		)
+			),
+			bn(config.img_channels),
+			jax.nn.tanh,
+		]
 
 		self.g = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
+		z = z.sum(axis=2, keepdims=True)
 		z = z.astype(self.half_prec)
 		return self.g(z).astype(self.full_prec)
 

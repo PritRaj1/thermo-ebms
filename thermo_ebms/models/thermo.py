@@ -1,10 +1,10 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
 
 from .base import neuralEBM
 from .kaem import KAEM
+from ..config import ModelConfig
 
 
 def build_pairs(T, offset):
@@ -13,7 +13,7 @@ def build_pairs(T, offset):
 
 
 class _Thermo:
-	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
+	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		self.num_temps = config.thermo.num_temps
 		self.temps = jnp.linspace(0.0, 1.0, self.num_temps)
@@ -24,9 +24,10 @@ class _Thermo:
 
 	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
 		"""
-		Adapt temps by minimising/equalizing KL div between adjacent power posteriors
+		        Adapt temps by minimising/equalizing KL div between adjacent power posteriors
+		Called outside JIT
 
-		KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
+		        KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
 		"""
 
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
@@ -70,6 +71,7 @@ class _Thermo:
 		perm = perm.at[j].set(jnp.where(accept, pi, pj))
 		return z[perm]
 
+	@nnx.jit
 	def sample_posterior(self, key, x):
 		z0, key = self.mcmc_init(key, x.shape[0] * self.num_temps)
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
@@ -85,7 +87,6 @@ class _Thermo:
 			return self.replica_xchange(key_i, z_i, idx, x)
 
 		z0 = self.posterior_sampler(key, score, z0, xchange)
-		self.adapt_temps(x, z0)
 		return z0
 
 	def loss(self, x: jax.Array, z: jax.Array, _: jax.Array) -> jax.Array:

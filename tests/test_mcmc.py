@@ -39,8 +39,8 @@ def test_mcmc_plot():
 	rngs = nnx.Rngs(key)
 
 	cfg = make_config()
-	cfg.ebm.mcmc_numsteps = 50
-	model = neuralEBM(cfg, rngs)
+	cfg.model.ebm.mcmc.numsteps = 50
+	model = neuralEBM(cfg.model, rngs)
 	z = run_chain(model, key)
 	energy = jax.vmap(model.ebm.prior_score)(z)
 

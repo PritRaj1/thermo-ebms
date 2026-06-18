@@ -1,7 +1,8 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
+
+from ..config import EBMConfig
 
 
 class EBM(nnx.Module):
@@ -10,7 +11,7 @@ class EBM(nnx.Module):
 
 	def __init__(
 		self,
-		ebm_config: ConfigDict,
+		ebm_config: EBMConfig,
 		z_dim: int,
 		rngs: nnx.Rngs,
 	):
@@ -52,4 +53,7 @@ class EBM(nnx.Module):
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
+		if jnp.ndim(z_post) > jnp.ndim(z_prior):
+			z_post = z_post[-1, :, :, :]  # Final thermo samples = posterior
+
 		return (self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]

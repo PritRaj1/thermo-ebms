@@ -5,7 +5,7 @@ from flax import nnx
 import numpy as np
 import orbax.checkpoint as ocp
 from pathlib import Path
-from ml_collections import ConfigDict
+from omegaconf import OmegaConf
 import h5py
 import yaml
 
@@ -13,6 +13,7 @@ from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from .opt import coupled_opt
 from .jit import gen, eval_step, train_step
+from ..config import Config
 
 
 def to_uint8(x: jax.Array) -> np.ndarray:
@@ -25,7 +26,7 @@ def to_uint8(x: jax.Array) -> np.ndarray:
 class ebmTrainer:
 	def __init__(
 		self,
-		config: ConfigDict,
+		config: Config,
 	):
 		key = jax.random.PRNGKey(config.model.seed)
 		rngs = nnx.Rngs(params=key)
@@ -35,9 +36,9 @@ class ebmTrainer:
 			("neural", False): mleEBM,
 			("kaem", True): thermoKAEM,
 			("kaem", False): mleKAEM,
-		}[(config.model.base.lower(), config.thermo.num_temps > 1)]
+		}[(config.model.base.lower(), config.model.thermo.num_temps > 1)]
 
-		self.model = model_cls(config, rngs)
+		self.model = model_cls(config.model, rngs)
 		self.train_loader, self.test_loader, updates_per_epoch = get_loaders(
 			config.training
 		)
@@ -50,7 +51,7 @@ class ebmTrainer:
 		self.sample_every = config.logging.sample_every * updates_per_epoch
 		self.num_samples = config.logging.num_samples
 
-		self.tx = coupled_opt(self.model, config, updates_per_epoch)
+		self.tx = coupled_opt(self.model, config.model, updates_per_epoch)
 		graph, ps, st = nnx.split(self.model, nnx.Param, ...)
 		self.opt_st = self.tx.init(ps)
 
@@ -59,7 +60,7 @@ class ebmTrainer:
 		self.logdir.mkdir(parents=True, exist_ok=True)
 		self.writer = metric_writers.create_default_writer(logdir=logdir)
 		with open(self.logdir / "config_copy.yaml", "w") as f:
-			yaml.safe_dump(config.to_dict(), f)
+			yaml.safe_dump(OmegaConf.to_container(config, resolve=True), f)
 
 		self.progress = periodic_actions.ReportProgress(
 			num_train_steps=updates_per_epoch * self.num_epochs, writer=self.writer

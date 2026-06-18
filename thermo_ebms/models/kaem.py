@@ -1,11 +1,11 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from ml_collections import ConfigDict
 from numpy.polynomial.legendre import leggauss
 
 from .base import neuralEBM
 from .kan import kanBANK
+from ..config import ModelConfig
 
 
 def get_gauss(
@@ -22,12 +22,15 @@ def get_gauss(
 
 
 class KAEM(neuralEBM):
-	def __init__(self, config: ConfigDict, rngs: nnx.Rngs):
+	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		del self.ebm.f
+		self.base = "kaem"
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.ebm.f = kanBANK(config.kaem, self.z_dim, config.model.seed)
+		self.ebm.f = kanBANK(
+			config.kaem.kan, config.kaem.mixture, self.z_dim, config.seed
+		)
 		self.ebm.en = self.energy
 
 		# Gauss–Legendre quadrature for Inverse Transform
@@ -68,7 +71,7 @@ class KAEM(neuralEBM):
 		return -0.5 * (z / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
-		"""Sample uniformly from Categorical(1:mixture_components)"""
+		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
 		self.component = jnp.arange(self.ebm.f.Q)[None, :, None]
 		if self.ebm.f.mixture:
 			key, subkey = jax.random.split(key)
@@ -103,9 +106,9 @@ class KAEM(neuralEBM):
 		t = (u.squeeze(-1) - cdf0) / (cdf1 - cdf0 + 1e-12)
 		return z0 + t * (z1 - z0)
 
+	@nnx.jit(static_argnames=("N",))
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
-		key = self.sample_mixture(key, N)
 		inner_dim = 1 if self.ebm.f.mixture else self.ebm.f.Q
 
 		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q

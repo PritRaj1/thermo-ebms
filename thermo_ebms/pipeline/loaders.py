@@ -1,8 +1,9 @@
 import grain.python as grain
 import tensorflow_datasets as tfds
 import numpy as np
-from ml_collections import ConfigDict
 from typing import Any
+
+from ..config import TrainingConfig
 
 
 def test_data():
@@ -32,7 +33,9 @@ def get_dataloader(name: str, split: str, batch_size: int) -> grain.IterDataset:
 	return ds.to_iter_dataset()
 
 
-def get_loaders(data_config: ConfigDict) -> tuple[grain.IterDataset, grain.IterDataset]:
+def get_loaders(
+	data_config: TrainingConfig,
+) -> tuple[grain.IterDataset, grain.IterDataset]:
 	name = data_config.dataset
 	batch_size = data_config.batch_size
 	train_loader = get_dataloader(name, "train", batch_size)
