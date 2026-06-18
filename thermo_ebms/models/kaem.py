@@ -82,7 +82,7 @@ class KAEM(neuralEBM):
 		return key
 
 	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
-		"""Batched inversion; u: (N, Q, P, -1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
+		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
 		idx = jnp.sum(
 			cdf <= u, axis=-1, keepdims=True
 		)  # [first cdf > u] == [count num cdf <= u]
