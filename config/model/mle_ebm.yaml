@@ -1,0 +1,9 @@
+model:
+  base: neural
+
+  thermo:
+    num_temps: 1
+
+logging:
+  logdir: logs/mleEBM/cifar10
+  ckpt_dir: logs/mleEBM/cifar10

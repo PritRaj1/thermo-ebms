@@ -1,0 +1,10 @@
+model:
+  base: kaem
+
+  thermo:
+    num_temps: 10
+    xchange_every: 2
+
+logging:
+  logdir: logs/thermoKAEM/cifar10
+  ckpt_dir: logs/thermoKAEM/cifar10
