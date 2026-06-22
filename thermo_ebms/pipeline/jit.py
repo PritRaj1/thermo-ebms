@@ -38,11 +38,14 @@ def train_step(
 	z_prior = model.sample_prior(prior_key, x.shape[0])
 	z_post = model.sample_posterior(posterior_key, x)
 
+	if model.num_temps > 1:
+		model.adapt_temps(x, z_post)
+
+	if (model.base == "kaem") and hasattr(model.ebm.f.layers[0], "grid"):
+		model.update_grid(z_post)
+
 	model.train()
 	new_model, new_st, loss = update(tx, opt_st, model, x, z_post, z_prior)
-	if new_model.num_temps > 1:
-		new_model.adapt_temps(x, z_post)
-
 	return new_model, new_st, loss, key
 
 

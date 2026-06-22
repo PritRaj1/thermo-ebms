@@ -50,9 +50,9 @@ model:
     numquad: 100
     numgrid: 10
     kan:
-      basis: rbf
-      rbf:
-        D: 10
+      basis: spline
+      spline:
+        D: 
 
   thermo:
     num_temps: 10

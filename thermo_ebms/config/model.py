@@ -11,6 +11,7 @@ class KAEMConfig:
 	mixture: bool = True
 	numquad: int = 25
 	numgrid: int = 10
+	update_grid_frequency: int = 5
 
 
 @dataclass

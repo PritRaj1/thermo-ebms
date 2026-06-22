@@ -52,3 +52,8 @@ class kanBANK(nnx.Module):
 		# univariate
 		q = jnp.arange(self.Q)
 		return en.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
+
+	def update_grid(self, z: jax.Array, D_new: int) -> None:
+		z = jnp.reshape(z, (-1, self.P))
+		for i in range(len(self.layers)):
+			self.layers[i].update_grid(z[:, i : i + 1], D_new)

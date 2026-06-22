@@ -49,10 +49,12 @@ model:
     mixture: true
     numquad: 25
     numgrid: 10
+    grid_update_frequency: 5
     kan:
-      basis: rbf
-      rbf:
-        D: 10
+      basis: spline
+      spline:
+        k: 3
+        G: 10
 
   thermo:
     num_temps: 4
