@@ -1,0 +1,83 @@
+model:
+  z_dim: 80
+  seed: 0
+  base: kaem
+
+  ebm:
+    layer_widths: [200, 200, 1]
+    leakyrelu_leak: 0.1
+    p0_stddev: 1.0
+    mcmc:
+      stepsize: 0.4
+      numsteps: 60
+    optim:
+      lr_init: 0.00002
+      lr_end: 0.00001
+      lr_decay: 0.975
+      beta1: 0.999
+      beta2: 0.5
+
+  gen:
+    gaussian_stddev: 0.3
+    leakyrelu_leak: 0.2
+    blocks:
+      - channels: 512
+        kernel_size: 4
+        stride: 1
+        padding: VALID
+      - channels: 256
+        kernel_size: 4
+        stride: 2
+        padding: SAME
+      - channels: 128
+        kernel_size: 4
+        stride: 2
+        padding: SAME
+    img_channels: 3
+    image_res: 32
+    mcmc:
+      stepsize: 0.01
+      numsteps: 20
+    optim:
+      lr_init: 0.0001
+      lr_end: 0.00005
+      lr_decay: 0.975
+      beta1: 0.999
+      beta2: 0.5
+
+  kaem:
+    mixture: true
+    numquad: 100
+    numgrid: 10
+    kan:
+      basis: rbf
+      rbf:
+        D: 10
+
+  thermo:
+    num_temps: 10
+    xchange_every: 2
+
+training:
+  epochs: 100
+  batch_size: 128
+  dataset: cifar10
+
+logging:
+  logdir: logs/thermo/cifar10
+  ckpt_dir: logs/thermo/cifar10
+  ckpt_every: 20
+  eval_every: 10
+  sample_every: 10
+  num_samples: 128
+
+lr_schedule:
+  epoch_begin: 1
+  epoch_step: 1
+
+unbiased_metrics:
+  batch_size_to_generate: 200
+  num_samples: 20000
+  regression_steps: [2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]
+
+

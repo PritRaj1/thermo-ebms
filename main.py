@@ -1,16 +1,17 @@
-import yaml
-import ml_collections
+from hydra import compose, initialize
 
 
-def load_config(config_path: str) -> ml_collections.ConfigDict:
-	"""Loads YAML configuration into a ConfigDict."""
-	with open(config_path) as f:
-		config = yaml.safe_load(f)
-	return ml_collections.ConfigDict(config)
+def load_config(name: str):
+	with initialize(config_path="config", version_base=None):
+		cfg = compose(
+			config_name=name,
+		)
+	return cfg
 
 
 def main():
-	config = load_config("config/conf.yaml")
+	config = load_config("cifar10")
+	print(config)
 
 
 if __name__ == "__main__":
