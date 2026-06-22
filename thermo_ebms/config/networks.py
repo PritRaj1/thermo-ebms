@@ -24,7 +24,7 @@ class OptConfig:
 class EBMConfig:
 	p0_stddev: float = 1.0
 	leakyrelu_leak: float = 0.1
-	mcmc: MCMCConfig | None = field(default_factory=MCMCConfig)
+	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
 	layer_widths: list[int] = field(default_factory=lambda: [200, 200, 1])
 
 
@@ -42,7 +42,7 @@ class GENConfig:
 	image_res: int = 32
 	gaussian_stddev: float = 0.3
 	leakyrelu_leak: float = 0.2
-	mcmc: MCMCConfig | None = field(default_factory=MCMCConfig)
+	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
 	blocks: Sequence[ConvBlock] = field(
 		default_factory=lambda: [
 			ConvBlock(
