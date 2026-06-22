@@ -35,8 +35,6 @@ class KAEM(neuralEBM):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.kaem.numquad
-		self.numgrid = config.kaem.numgrid
-		self.update_every = config.kaem.grid_update_frequency
 		nodes, weights = leggauss(self.numquad)
 		self.nodes, self.weights = (
 			jnp.repeat(jnp.expand_dims(jnp.array(nodes), axis=1), self.z_dim, axis=1),
@@ -49,8 +47,7 @@ class KAEM(neuralEBM):
 		return jnp.take_along_axis(self.ebm.f(z), self.component, axis=1).sum()
 
 	def update_grid(self, z: jax.Array) -> None:
-		if self.train_idx % self.update_every == 0:
-			self.ebm.f.update_grid(z, self.numgrid)
+		self.ebm.f.update_grid(z, self.train_idx)
 
 	def init_gauss(self):
 		"""Adapt Gauss-Legendre integration domain"""

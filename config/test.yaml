@@ -49,12 +49,15 @@ model:
     mixture: true
     numquad: 25
     numgrid: 10
-    grid_update_frequency: 5
     kan:
       basis: spline
       spline:
         k: 3
         G: 10
+      grid_updating:
+        numgrid: 10
+        update_frequency: 2
+        frequency_decay: 0.98
 
   thermo:
     num_temps: 4

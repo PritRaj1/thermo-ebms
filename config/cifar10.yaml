@@ -50,9 +50,12 @@ model:
     numquad: 100
     numgrid: 10
     kan:
-      basis: spline
-      spline:
-        D: 
+      basis: chebyshev
+      chebyshev:
+      grid_updating:
+        numgrid: 10
+        update_frequency: 100
+        frequency_decay: 0.998
 
   thermo:
     num_temps: 10

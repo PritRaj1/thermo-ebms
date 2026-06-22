@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 from flax import nnx
 
@@ -42,9 +42,17 @@ class FourierConfig:
 
 
 @dataclass
+class GridUpdatingConfig:
+	numgrid: int = 8
+	update_frequency: int = 100
+	frequency_decay: float = 0.999
+
+
+@dataclass
 class KANConfig:
 	basis: BasisType = "rbf"
 	rbf: RBFConfig | None = None
 	spline: SplineConfig | None = None
 	chebyshev: ChebyshevConfig | None = None
 	fourier: FourierConfig | None = None
+	grid_updating: GridUpdatingConfig = field(default_factory=GridUpdatingConfig)
