@@ -1,39 +1,14 @@
-from hydra import compose, initialize
+import jax
+import hydra
 
-MODELS = [
-	"mle_ebm",
-	"thermo_ebm",
-	"mle_kaem",
-	"thermo_kaem",
-]
-
-DATASETS = [
-	"cifar10",
-	"svhn",
-	"celeba",
-]
+from thermo_ebms.pipeline import ebmTrainer
 
 
-def load_config(model: str, dataset: str):
-	with initialize(config_path="config", version_base=None):
-		cfg = compose(
-			config_name="base",
-			overrides=[
-				f"model={model}",
-				f"dataset={dataset}",
-			],
-		)
-	return cfg
-
-
-def main():
-	for model in MODELS:
-		for dataset in DATASETS:
-			cfg = load_config(model, dataset)
-
-			print("=" * 80)
-			print(f"{model=} {dataset=}")
-			print(cfg)
+@hydra.main(config_path="config", config_name="base", version_base=None)
+def main(cfg):
+	key = jax.random.PRNGKey(cfg.model.seed)
+	trainer = ebmTrainer(cfg, rngs=key)
+	key = trainer.run(key)
 
 
 if __name__ == "__main__":

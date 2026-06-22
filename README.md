@@ -10,7 +10,14 @@ This package hosts jax/orbax/grain utilities and BF16/FP32 mixed precision train
 
 ```bash
 pip install -e .
-pip install -e ".[train,eval,dev]" # w/ optional deps for orbax/grain training and unbiased fid/kid eval
+pip install -e ".[train,eval,dev,experiment]" # w/ optional deps for orbax/grain training and unbiased fid/kid eval
+```
+
+## Experiment
+
+```python
+python main.py
+python eval.py
 ```
 
 ## About

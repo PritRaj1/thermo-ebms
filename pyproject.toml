@@ -27,7 +27,6 @@ train = [
     "pyyaml>=6.0.3",
     "h5py",
     "tensorboard>=2.20.0",
-    "omegaconf>=2.3.1",
 ]
 
 eval = [
@@ -40,8 +39,13 @@ eval = [
 dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.17",
+]
+
+experiment = [
     "matplotlib>=3.10.9",
     "hydra-core>=1.3.3",
+    "typer>=0.26.7",
+    "tensorboard>=2.20.0",
 ]
 
 [tool.ruff]
