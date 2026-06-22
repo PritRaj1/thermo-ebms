@@ -51,7 +51,9 @@ class ebmTrainer:
 		self.sample_every = config.logging.sample_every * updates_per_epoch
 		self.num_samples = config.logging.num_samples
 
-		self.tx = coupled_opt(self.model, config.model, updates_per_epoch)
+		self.tx = coupled_opt(
+			self.model, config.model, config.lr_schedule, updates_per_epoch
+		)
 		graph, ps, st = nnx.split(self.model, nnx.Param, ...)
 		self.opt_st = self.tx.init(ps)
 

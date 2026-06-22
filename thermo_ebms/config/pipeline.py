@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 @dataclass
 class TrainingConfig:
-	dataset: str
+	dataset: str = "cifar10"
 	epochs: int = 100
 	batch_size: int = 128
 
@@ -13,14 +13,31 @@ class TrainingConfig:
 class LoggingConfig:
 	logdir: str = "./logs"
 	ckpt_dir: str = "./checkpoints"
-	ckpt_every: int = 1000
-	eval_every: int = 500
-	sample_every: int = 500
-	num_samples: int = 64
+	ckpt_every: int = 20
+	eval_every: int = 10
+	sample_every: int = 10
+	num_samples: int = 128
 
 
 @dataclass
 class MetricsConfig:
-	batch_size_to_generate: int
-	num_samples: int
-	regression_steps: Sequence[int]
+	batch_size_to_generate: int = 200
+	num_samples: int = 20000
+	regression_steps: Sequence[int] = (
+		2000,
+		4000,
+		6000,
+		8000,
+		10000,
+		12000,
+		14000,
+		16000,
+		18000,
+		20000,
+	)
+
+
+@dataclass
+class ScheduleConfig:
+	begin: int = 0
+	step: int = 0

@@ -16,8 +16,6 @@ model:
       lr_decay: 0.975
       beta1: 0.999
       beta2: 0.5
-      epoch_begin: 0
-      epoch_step: 0
 
   gen:
     gaussian_stddev: 0.3
@@ -46,8 +44,6 @@ model:
       lr_decay: 0.975
       beta1: 0.999
       beta2: 0.5
-      epoch_begin: 0
-      epoch_step: 0
 
   kaem:
     mixture: true
@@ -74,6 +70,10 @@ logging:
   eval_every: 1
   sample_every: 1
   num_samples: 10
+
+lr_schedule:
+  epoch_begin: 0
+  epoch_step: 1
 
 unbiased_metrics:
   batch_size_to_generate: 50
