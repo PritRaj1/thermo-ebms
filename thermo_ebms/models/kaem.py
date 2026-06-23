@@ -25,6 +25,7 @@ class KAEM(neuralEBM):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		del self.ebm.f
+		del self.en
 		self.base = "kaem"
 
 		# No-inner-sum KAN (Q*P 1D functions)
@@ -100,7 +101,7 @@ class KAEM(neuralEBM):
 		z1 = jnp.take_along_axis(nodes, idx1, axis=-1).squeeze(-1)
 
 		# Interpolate within bin
-		t = (u.squeeze(-1) - cdf0) / (cdf1 - cdf0 + 1e-12)
+		t = (u.squeeze(-1) - cdf0) / jnp.maximum(cdf1 - cdf0, 1e-12)
 		return z0 + t * (z1 - z0)
 
 	@nnx.jit(static_argnames=("N",))
@@ -118,12 +119,13 @@ class KAEM(neuralEBM):
 		key, subkey = jax.random.split(key)
 		u = jax.random.uniform(subkey, shape=(N, inner_dim, self.z_dim, 1))
 
-		pdf = jnp.exp(f + self.log_p0(self.nodes)[None, :, None, :])
-		pdf *= self.weights[None, :, None, :]
+		pdf = self.weights[None, :, None, :] * jnp.exp(
+			f + self.log_p0(self.nodes)[None, :, None, :]
+		)
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=1)
-		cdf /= cdf[:, -1:, :, :] + 1e-12
+		u *= cdf[:, -1:, :, :]  # Normalize (equivalent)
 
 		z = self.invert_cdf(u, cdf.transpose(0, 2, 3, 1))
 

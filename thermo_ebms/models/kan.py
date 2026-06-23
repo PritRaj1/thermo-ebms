@@ -66,10 +66,8 @@ class kanBANK(nnx.Module):
 		return layers
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		if train_idx % self.freq:
+		if train_idx % self.freq == 0:
 			self.layers = self._static_update(z, self.layers)
 
 			if train_idx > 1:
-				self.freq = jnp.floor(
-					self.freq * (2 - self.decay) ** train_idx
-				)  # Decay
+				self.freq = jnp.floor(self.freq * (2 - self.decay))  # Decay

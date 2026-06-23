@@ -12,7 +12,7 @@ model:
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     mcmc:
-      stepsize: 0.4
+      stepsize: 0.16
       numsteps: 60
     optim:
       lr_init: 0.00002
