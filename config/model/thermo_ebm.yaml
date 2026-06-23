@@ -1,10 +1,5 @@
-model:
-  base: neural
+base: neural
 
-  thermo:
-    num_temps: 10
-    xchange_every: 2
-
-logging:
-  logdir: logs/thermoEBM/cifar10
-  ckpt_dir: logs/thermoEBM/cifar10
+thermo:
+  num_temps: 10
+  xchange_every: 2

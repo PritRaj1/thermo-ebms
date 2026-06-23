@@ -1,6 +1,6 @@
 defaults:
   - model: thermo_kaem
-  - dataset: cifar10
+  - training: cifar10
   - _self_
 
 model:
@@ -47,11 +47,11 @@ model:
         update_frequency: 100
         frequency_decay: 0.998
 
-training:
-  epochs: 100
-  batch_size: 128
+run_name: ${model.base}_${training.dataset}
 
 logging:
+  logdir: runs/${run_name}
+  ckpt_dir: runs/${run_name}
   ckpt_every: 20
   eval_every: 10
   sample_every: 10

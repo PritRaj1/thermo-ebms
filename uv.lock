@@ -2357,6 +2357,7 @@ eval = [
 experiment = [
     { name = "hydra-core" },
     { name = "matplotlib" },
+    { name = "omegaconf" },
     { name = "tensorboard" },
     { name = "typer" },
 ]
@@ -2385,6 +2386,7 @@ requires-dist = [
     { name = "jaxkan", specifier = ">=0.3.7" },
     { name = "matplotlib", marker = "extra == 'experiment'", specifier = ">=3.10.9" },
     { name = "numpy", specifier = ">=2.4.6" },
+    { name = "omegaconf", marker = "extra == 'experiment'", specifier = ">=2.3.1" },
     { name = "opencv-python-headless", marker = "extra == 'train'", specifier = ">=4.13.0.92" },
     { name = "optax", marker = "extra == 'train'", specifier = ">=0.2.8" },
     { name = "orbax-checkpoint", marker = "extra == 'train'", specifier = ">=0.12.0" },

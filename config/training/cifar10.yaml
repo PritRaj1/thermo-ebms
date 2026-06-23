@@ -1,7 +1,8 @@
-training:
-  dataset: cifar10
+dataset: cifar10
+epochs: 100
+batch_size: 128
 
-model:
+model_overrides:
   gen:
     image_res: 32
     blocks:

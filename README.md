@@ -15,9 +15,18 @@ pip install -e ".[train,eval,dev,experiment]" # w/ optional deps for orbax/grain
 
 ## Experiment
 
+Training:
+
 ```python
-python main.py
-python eval.py
+python main.py model=thermo_kaem training=celeba # single train job
+python runner.py # multiple jobs
+```
+
+Unbiased image metrics:
+
+```python
+python eval.py run runs/thermo_kaem_cifar10 # single trained model
+python eval.py all-runs runs/ # for all generated samples in folder
 ```
 
 ## About
