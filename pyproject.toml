@@ -11,9 +11,9 @@ dependencies = [
     "flax>=0.12.7",
     "grain>=0.2.17",
     "importlib-resources>=7.1.0",
-    "jax[cuda12]>=0.10.1",
     "numpy>=2.4.6",
     "jaxkan>=0.3.7",
+    "jax[cuda13]>=0.10.2",
 ]
 
 [project.optional-dependencies]

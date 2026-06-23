@@ -12,7 +12,7 @@ def test_mle():
 	key = jax.random.key(0)
 
 	cfg.model.thermo.num_temps = -1
-	trainer = ebmTrainer(cfg)
+	trainer = ebmTrainer(cfg, nnx.Rngs(key))
 	batch = next(iter(trainer.train_loader))
 	x = batch["x"]
 
@@ -36,7 +36,7 @@ def test_thermo():
 	key = jax.random.key(0)
 
 	cfg.model.thermo.num_temps = 10
-	trainer = ebmTrainer(cfg)
+	trainer = ebmTrainer(cfg, nnx.Rngs(key))
 	batch = next(iter(trainer.train_loader))
 	x = batch["x"]
 

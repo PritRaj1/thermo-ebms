@@ -27,12 +27,8 @@ class ebmTrainer:
 	def __init__(
 		self,
 		config: Config,
-		rngs: nnx.Rngs | None = None,
+		rngs: nnx.Rngs,
 	):
-		if not rngs:
-			key = jax.random.PRNGKey(config.model.seed)
-			rngs = nnx.Rngs(params=key)
-
 		model_cls = {
 			("neural", True): thermoEBM,
 			("neural", False): mleEBM,

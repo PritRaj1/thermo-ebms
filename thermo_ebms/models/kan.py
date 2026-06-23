@@ -57,11 +57,17 @@ class kanBANK(nnx.Module):
 		q = jnp.arange(self.Q)
 		return en.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
 
+	@nnx.jit
+	def _static_update(self, z: jax.Array, layers: nnx.Module):
+		z = jnp.reshape(z, (-1, self.P))
+		for i in range(len(self.layers)):
+			layers[i].update_grid(z[:, i : i + 1], self.numgrid)
+
+		return layers
+
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.freq:
-			z = jnp.reshape(z, (-1, self.P))
-			for i in range(len(self.layers)):
-				self.layers[i].update_grid(z[:, i : i + 1], self.numgrid)
+			self.layers = self._static_update(z, self.layers)
 
 			if train_idx > 1:
 				self.freq = jnp.floor(

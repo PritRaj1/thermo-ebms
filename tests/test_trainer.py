@@ -1,4 +1,5 @@
 import jax
+from flax import nnx
 import orbax.checkpoint as ocp
 
 from thermo_ebms.pipeline import ebmTrainer
@@ -12,7 +13,7 @@ def test_logdir(tmp_path):
 	cfg.logging.logdir = str(tmp_path / "logs")
 	cfg.logging.ckpt_dir = str(tmp_path / "ckpt")
 
-	trainer = ebmTrainer(cfg)
+	trainer = ebmTrainer(cfg, nnx.Rngs(key))
 	trainer.run(key)
 
 	logdir = tmp_path / "logs"
