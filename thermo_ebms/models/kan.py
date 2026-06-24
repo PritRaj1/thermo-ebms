@@ -13,24 +13,6 @@ BASES = {
 }
 
 
-def _static_update(
-	z: jax.Array,
-	graph: nnx.GraphDef,
-	st: nnx.State,
-	P: int,
-	numgrid: int,
-) -> nnx.State:
-
-	layers = nnx.merge(graph, st)
-
-	z = jnp.reshape(z, (-1, P))
-	for i in range(len(layers)):
-		layers[i].update_grid(z[:, i : i + 1], numgrid)
-
-	_, new_st = nnx.split(layers)
-	return new_st
-
-
 class kanBANK(nnx.Module):
 	"""KAN module with no inner sum"""
 
@@ -79,9 +61,9 @@ class kanBANK(nnx.Module):
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.freq == 0:
-			graph, st = nnx.split(self.layers)
-			st = _static_update(z, graph, st, self.P, self.numgrid)
-			nnx.update(self.layers, st)
+			z = jnp.reshape(z, (-1, self.P))
+			for i in range(len(self.layers)):
+				self.layers[i].update_grid(z[:, i : i + 1], self.numgrid)
 
 			if train_idx > 1:
 				self.freq[...] = jnp.floor(self.freq[...] * (2 - self.decay))  # Decay
