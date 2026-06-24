@@ -91,44 +91,51 @@ class ebmTrainer:
 			),
 		)
 
-	def train_epoch(self, key: jax.Array):
+	def train_epoch(self, key: jax.Array, epoch: int):
+		running_loss = 0.0
 		for _, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x_sharded = jax.device_put(batch["x"], self.batch_sharding)
 			key_idx = jax.random.fold_in(key, int(self.model.train_idx))
 			self.model, self.opt_st, loss, _ = train_step(
 				self.tx, self.opt_st, self.model, x_sharded, key_idx
 			)
-			self.writer.write_scalars(self.model.train_idx, {"batch_loss": loss})
-			self.progress(self.model.train_idx)
+			running_loss += loss
 
-		train_idx = self.model.train_idx
-		if train_idx % self.eval_every == 0:
-			loss = 0.0
+		if self.is_host0:
+			self.writer.write_scalars(
+				self.model.train_idx,
+				{"train_loss": running_loss / self.updates_per_epoch},
+			)
+			self.progress(epoch)
+
+		if epoch % self.eval_every == 0:
+			running_loss = 0.0
 			num_batches = 0
 			for batch in self.test_loader:
 				x_sharded = jax.device_put(batch["x"], self.batch_sharding)
 				eval_key = jax.random.fold_in(key_idx, num_batches)
-				loss_val, _ = eval_step(self.model, x_sharded, eval_key)
-				loss += loss_val
+				loss, _ = eval_step(self.model, x_sharded, eval_key)
+				running_loss += loss
 				num_batches += 1
 
-			self.writer.write_scalars(
-				self.model.train_idx, {"test_loss": loss / num_batches}
-			)
+			if self.is_host0:
+				self.writer.write_scalars(
+					epoch, {"test_loss": running_loss / num_batches}
+				)
 
-		if (train_idx % self.sample_every == 0) and self.is_host0:
+		if (epoch % self.sample_every == 0) and self.is_host0:
 			x, key = self.model(key, self.num_samples)
-			self.writer.write_images(train_idx, {"generated_batch": x})
+			self.writer.write_images(epoch, {"generated_batch": x})
 
 		if self.is_host0:
 			self.ckpt_manager.save(
-				train_idx,
+				self.model.train_idx,
 				args=ocp.args.StandardSave(
 					{
 						"model": self.model,
 						"opt_state": self.opt_st,
 						"rng": key,
-						"step": train_idx,
+						"step": self.model.train_idx,
 					}
 				),
 			)
@@ -137,7 +144,7 @@ class ebmTrainer:
 
 	def run(self, key: jax.Array) -> jax.Array:
 		for epoch in range(self.num_epochs):
-			key = self.train_epoch(key)
+			key = self.train_epoch(key, epoch)
 
 		self.writer.flush()
 		sync_global_devices("post_training_sync")
