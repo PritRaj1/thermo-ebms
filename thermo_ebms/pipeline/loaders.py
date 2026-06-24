@@ -65,7 +65,7 @@ def get_loaders(
 	train_loader = get_dataloader(name, "train", batch_size, seed)
 	test_loader = get_dataloader(name, "test", batch_size, seed)
 
-	num_examples = 500
+	num_examples = 50
 	if name != "fake32":
 		bldr = tfds.builder(name)
 		num_examples = bldr.info.splits["train"].num_examples

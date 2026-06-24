@@ -9,6 +9,7 @@ from clu import periodic_actions
 from pathlib import Path
 from omegaconf import OmegaConf
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
+from jax.experimental.multihost_utils import sync_global_devices
 
 from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
@@ -40,7 +41,7 @@ class ebmTrainer:
 		self.mesh = Mesh(jax.devices(), axis_names=("data",))
 		nnx.use_eager_sharding(True)
 		self.batch_sharding = NamedSharding(self.mesh, P("data", None, None, None))
-		self.train_loader, self.test_loader, updates_per_epoch = get_loaders(
+		self.train_loader, self.test_loader, self.updates_per_epoch = get_loaders(
 			config.training, config.model.seed
 		)
 
@@ -51,7 +52,7 @@ class ebmTrainer:
 			self.model = model_cls(config.model, key)
 			graph, ps, st = nnx.split(self.model, nnx.Param, ...)
 			self.tx = coupled_opt(
-				self.model, config.model, config.lr_schedule, updates_per_epoch
+				self.model, config.model, config.lr_schedule, self.updates_per_epoch
 			)
 			self.opt_st = self.tx.init(ps)
 
@@ -61,9 +62,9 @@ class ebmTrainer:
 			config.unbiased_metrics.batch_size_to_generate // jax.process_count()
 		)
 
-		ckpt_every = config.logging.ckpt_every * updates_per_epoch
-		self.eval_every = config.logging.eval_every * updates_per_epoch
-		self.sample_every = config.logging.sample_every * updates_per_epoch
+		ckpt_every = config.logging.ckpt_every * self.updates_per_epoch
+		self.eval_every = config.logging.eval_every * self.updates_per_epoch
+		self.sample_every = config.logging.sample_every * self.updates_per_epoch
 		self.num_samples = config.logging.num_samples
 
 		self.is_host0 = jax.process_index() == 0
@@ -78,7 +79,7 @@ class ebmTrainer:
 			self.writer = metric_writers.MultiWriter([])  # no-op
 
 		self.progress = periodic_actions.ReportProgress(
-			num_train_steps=updates_per_epoch * self.num_epochs, writer=self.writer
+			num_train_steps=self.updates_per_epoch * self.num_epochs, writer=self.writer
 		)
 
 		self.ckpt_manager = ocp.CheckpointManager(
@@ -91,7 +92,7 @@ class ebmTrainer:
 		)
 
 	def train_epoch(self, key: jax.Array):
-		for batch in self.train_loader:
+		for _, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x_sharded = jax.device_put(batch["x"], self.batch_sharding)
 			key_idx = jax.random.fold_in(key, int(self.model.train_idx))
 			self.model, self.opt_st, loss, _ = train_step(
@@ -139,6 +140,7 @@ class ebmTrainer:
 			key = self.train_epoch(key)
 
 		self.writer.flush()
+		sync_global_devices("post_training_sync")
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
@@ -164,5 +166,6 @@ class ebmTrainer:
 					dataset[idx : idx + bs] = to_uint8(x)
 					idx += bs
 
+		sync_global_devices("post_gengen_sync")
 		self.ckpt_manager.wait_until_finished()
 		return key
