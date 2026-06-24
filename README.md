@@ -29,6 +29,8 @@ python eval.py run runs/thermo_kaem_cifar10 # single trained model
 python eval.py all-runs runs/ # for all generated samples in folder
 ```
 
+Trainer will run distributed data-parallel if a multi-device environment is detected.
+
 ## About
 
 The original motivation for this repo, (during my [2023/24 MEng thesis](docs/report.pdf)), was to investigate TI as a means of controlling learning gradient variance in deep generative models. Exploration vs exploitation is still an unanswered question, and previous attempts at investigating it proved unreliable.

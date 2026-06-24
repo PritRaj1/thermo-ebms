@@ -37,7 +37,9 @@ class kanBANK(nnx.Module):
 		)
 
 		self.numgrid = config.grid_updating.numgrid
-		self.freq = config.grid_updating.update_frequency
+		self.freq = nnx.Variable(
+			jnp.array(config.grid_updating.update_frequency, dtype=jnp.float32)
+		)
 		self.decay = config.grid_updating.frequency_decay
 
 	def __call__(self, z: jax.Array) -> jax.Array:
@@ -57,17 +59,11 @@ class kanBANK(nnx.Module):
 		q = jnp.arange(self.Q)
 		return en.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
 
-	@nnx.jit
-	def _static_update(self, z: jax.Array, layers: nnx.Module):
-		z = jnp.reshape(z, (-1, self.P))
-		for i in range(len(self.layers)):
-			layers[i].update_grid(z[:, i : i + 1], self.numgrid)
-
-		return layers
-
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.freq == 0:
-			self.layers = self._static_update(z, self.layers)
+			z = jnp.reshape(z, (-1, self.P))
+			for i in range(len(self.layers)):
+				self.layers[i].update_grid(z[:, i : i + 1], self.numgrid)
 
 			if train_idx > 1:
-				self.freq = jnp.floor(self.freq * (2 - self.decay))  # Decay
+				self.freq[...] = jnp.floor(self.freq.value * (2 - self.decay))  # Decay

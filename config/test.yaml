@@ -4,7 +4,7 @@ model:
   base: kaem
 
   ebm:
-    layer_widths: [200, 200, 1]
+    layer_widths: [100, 100, 1]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     mcmc:
@@ -60,12 +60,12 @@ model:
         frequency_decay: 0.98
 
   thermo:
-    num_temps: 4
+    num_temps: 3
     xchange_every: 2
 
 training:
   epochs: 1
-  batch_size: 32
+  global_batch_size: 32
   dataset: fake32
 
 logging:

@@ -1,6 +1,8 @@
 import jax
+import sys
 import jax.numpy as jnp
 from flax import nnx
+from absl import flags
 
 from thermo_ebms.pipeline import ebmTrainer, train_step
 from utils import make_config
@@ -9,10 +11,12 @@ cfg = make_config()
 
 
 def test_mle():
-	key = jax.random.key(0)
+	if not flags.FLAGS.is_parsed():
+		flags.FLAGS(sys.argv, known_only=True)
 
+	key = jax.random.key(0)
 	cfg.model.thermo.num_temps = -1
-	trainer = ebmTrainer(cfg, nnx.Rngs(key))
+	trainer = ebmTrainer(cfg)
 	batch = next(iter(trainer.train_loader))
 	x = batch["x"]
 
@@ -33,10 +37,12 @@ def test_mle():
 
 
 def test_thermo():
-	key = jax.random.key(0)
+	if not flags.FLAGS.is_parsed():
+		flags.FLAGS(sys.argv, known_only=True)
 
+	key = jax.random.key(0)
 	cfg.model.thermo.num_temps = 10
-	trainer = ebmTrainer(cfg, nnx.Rngs(key))
+	trainer = ebmTrainer(cfg)
 	batch = next(iter(trainer.train_loader))
 	x = batch["x"]
 

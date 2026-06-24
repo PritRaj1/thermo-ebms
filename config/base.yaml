@@ -8,7 +8,7 @@ model:
   seed: 0
 
   ebm:
-    layer_widths: [200, 200, 1]
+    layer_widths: [100, 100, 1]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     mcmc:
@@ -55,13 +55,13 @@ logging:
   ckpt_every: 20
   eval_every: 10
   sample_every: 10
-  num_samples: 128
+  num_samples: 100
 
 lr_schedule:
   epoch_begin: 1
   epoch_step: 1
 
 unbiased_metrics:
-  batch_size_to_generate: 200
+  batch_size_to_generate: 50
   num_samples: 20000
   regression_steps: [2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]

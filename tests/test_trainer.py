@@ -1,5 +1,6 @@
 import jax
-from flax import nnx
+import sys
+from absl import flags
 import orbax.checkpoint as ocp
 
 from thermo_ebms.pipeline import ebmTrainer
@@ -7,13 +8,18 @@ from utils import make_config
 
 
 def test_logdir(tmp_path):
+
+	# parse flags to satisfy grain_enable_multiprocess_worker_profiling
+	if not flags.FLAGS.is_parsed():
+		flags.FLAGS(sys.argv, known_only=True)
+
 	cfg = make_config()
 	key = jax.random.key(0)
 
 	cfg.logging.logdir = str(tmp_path / "logs")
 	cfg.logging.ckpt_dir = str(tmp_path / "ckpt")
 
-	trainer = ebmTrainer(cfg, nnx.Rngs(key))
+	trainer = ebmTrainer(cfg)
 	trainer.run(key)
 
 	logdir = tmp_path / "logs"

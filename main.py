@@ -1,6 +1,5 @@
 import jax
 import hydra
-from flax import nnx
 from omegaconf import OmegaConf
 
 from thermo_ebms.pipeline import ebmTrainer
@@ -27,7 +26,7 @@ def apply_overrides(cfg):
 def main(cfg):
 	cfg = apply_overrides(cfg)
 	key = jax.random.PRNGKey(cfg.model.seed)
-	trainer = ebmTrainer(cfg, rngs=nnx.Rngs(key))
+	trainer = ebmTrainer(cfg)
 	key = trainer.run(key)
 
 

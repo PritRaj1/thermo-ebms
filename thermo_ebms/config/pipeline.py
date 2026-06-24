@@ -6,7 +6,7 @@ from collections.abc import Sequence
 class TrainingConfig:
 	dataset: str = "cifar10"
 	epochs: int = 100
-	batch_size: int = 128
+	global_batch_size: int = 128
 
 
 @dataclass

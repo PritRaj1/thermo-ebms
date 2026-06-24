@@ -1,20 +1,20 @@
 dataset: svhn_cropped
-epochs: 100
-batch_size: 128
+epochs: 10
+global_batch_size: 32
 
 model_overrides:
   gen:
     image_res: 32
     blocks:
-      - channels: 256
+      - channels: 128
         kernel_size: 4
         stride: 1
         padding: VALID
-      - channels: 128
+      - channels: 64
         kernel_size: 4
         stride: 2
         padding: SAME
-      - channels: 64
+      - channels: 32
         kernel_size: 4
         stride: 2
         padding: SAME

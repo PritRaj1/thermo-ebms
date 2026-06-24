@@ -16,7 +16,7 @@ class _Thermo:
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		self.num_temps = config.thermo.num_temps
-		self.temps = jnp.linspace(0.0, 1.0, self.num_temps)
+		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
 
 		# DEO exchange
 		self.i_pairs = build_pairs(self.num_temps, 0)
@@ -46,7 +46,7 @@ class _Thermo:
 
 	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
 		self.eval()
-		self.temps = self._adapt_temps(x, z)
+		self.temps[...] = self._adapt_temps(x, z)
 
 	def replica_xchange(
 		self,
@@ -100,14 +100,16 @@ class _Thermo:
 		# Expand chosen mixture component to all temps
 		mixture_component = None
 		if self.base == "kaem":
-			mixture_component = self.component
-			self.component = jnp.repeat(self.component, self.num_temps, axis=0)
+			mixture_component = self.component[...]
+			self.component.set_value(
+				jnp.repeat(mixture_component, self.num_temps, axis=0)
+			)
 
 		z = self._sample_posterior(key, x)
 
 		# Contract back
 		if self.base == "kaem":
-			self.component = mixture_component
+			self.component.set_value(mixture_component)
 
 		return z
 

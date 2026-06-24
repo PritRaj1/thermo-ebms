@@ -1,6 +1,7 @@
 import jax
-import jax.numpy as jnp
 from flax import nnx
+import numpy as np
+import jax.numpy as jnp
 from numpy.polynomial.legendre import leggauss
 
 from .base import neuralEBM
@@ -25,7 +26,6 @@ class KAEM(neuralEBM):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		del self.ebm.f
-		del self.en
 		self.base = "kaem"
 
 		# No-inner-sum KAN (Q*P 1D functions)
@@ -35,14 +35,21 @@ class KAEM(neuralEBM):
 		self.ebm.en = self.energy
 
 		# Gauss–Legendre quadrature for Inverse Transform
+		def expand_p(x: np.ndarray) -> jax.Array:
+			return jnp.repeat(
+				jnp.expand_dims(jnp.array(x), axis=1),
+				self.z_dim,
+				axis=1,
+			)
+
 		self.numquad = config.kaem.numquad
 		nodes, weights = leggauss(self.numquad)
-		self.nodes, self.weights = (
-			jnp.repeat(jnp.expand_dims(jnp.array(nodes), axis=1), self.z_dim, axis=1),
-			jnp.repeat(jnp.expand_dims(jnp.array(weights), axis=1), self.z_dim, axis=1),
-		)
-
+		self.nodes = nnx.Variable(expand_p(nodes))
+		self.weights = nnx.Variable(expand_p(weights))
 		self.init_gauss()
+
+		# Mixture component to sample
+		self.component = nnx.Variable(jnp.arange(self.ebm.f.Q)[None, :, None])
 
 	def energy(self, z: jax.Array) -> jax.Array():
 		return jnp.take_along_axis(self.ebm.f(z), self.component, axis=1).sum()
@@ -50,7 +57,7 @@ class KAEM(neuralEBM):
 	def update_grid(self, z: jax.Array) -> None:
 		self.ebm.f.update_grid(z, self.train_idx)
 
-	def init_gauss(self):
+	def init_gauss(self) -> None:
 		"""Adapt Gauss-Legendre integration domain"""
 		if hasattr(self.ebm.f.layers[0], "grid"):
 			nodes, weights = [], []
@@ -60,8 +67,8 @@ class KAEM(neuralEBM):
 				nodes.append(n)
 				weights.append(w)
 
-			self.nodes = jnp.stack(nodes, axis=-1)
-			self.weights = jnp.stack(weights, axis=-1)
+			self.nodes[...] = jnp.stack(nodes, axis=-1)
+			self.weights[...] = jnp.stack(weights, axis=-1)
 
 	def log_p0(self, z: jax.Array) -> jax.Array:
 		"""π_0(z) = N(0, 1)"""
@@ -70,14 +77,15 @@ class KAEM(neuralEBM):
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
 		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
-		self.component = jnp.arange(self.ebm.f.Q)[None, :, None]
 		if self.ebm.f.mixture:
 			key, subkey = jax.random.split(key)
-			self.component = jax.random.randint(
-				subkey,
-				shape=(N, 1, self.z_dim),
-				minval=0,
-				maxval=self.ebm.f.Q,
+			self.component.set_value(
+				jax.random.randint(
+					subkey,
+					shape=(N, 1, self.z_dim),
+					minval=0,
+					maxval=self.ebm.f.Q,
+				)
 			)
 
 		return key
@@ -125,7 +133,7 @@ class KAEM(neuralEBM):
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=1)
-		u *= cdf[:, -1:, :, :]  # Normalize (equivalent)
+		cdf /= cdf[:, -1:, :, :] + 1e-12  # Normalize
 
 		z = self.invert_cdf(u, cdf.transpose(0, 2, 3, 1))
 
