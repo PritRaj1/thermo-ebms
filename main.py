@@ -1,5 +1,7 @@
 import jax
 import hydra
+import sys
+from absl import flags
 from omegaconf import OmegaConf
 
 from thermo_ebms.pipeline import ebmTrainer
@@ -24,6 +26,10 @@ def apply_overrides(cfg):
 
 @hydra.main(config_path="config", config_name="base", version_base=None)
 def main(cfg):
+	# Force parse flags before any grain accesses them
+	if not flags.FLAGS.is_parsed():
+		flags.FLAGS(sys.argv, known_only=True)
+
 	cfg = apply_overrides(cfg)
 	key = jax.random.PRNGKey(cfg.model.seed)
 	trainer = ebmTrainer(cfg)
