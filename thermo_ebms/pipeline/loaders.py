@@ -30,7 +30,7 @@ def get_dataloader(
 
 	sampler = grain.IndexSampler(
 		num_records=len(source),
-		num_epochs=1,
+		num_epochs=None,
 		shard_options=grain.ShardOptions(
 			shard_index=jax.process_index(),
 			shard_count=jax.process_count(),
@@ -61,11 +61,10 @@ def get_loaders(
 	name = data_config.dataset
 	batch_size = data_config.global_batch_size // jax.process_count()
 	train_loader = get_dataloader(name, "train", batch_size, seed)
-	test_loader = get_dataloader(name, "test", batch_size, seed)
 
 	num_examples = 50
 	if name != "fake32":
 		bldr = tfds.builder(name)
 		num_examples = bldr.info.splits["train"].num_examples
 
-	return train_loader, test_loader, num_examples // data_config.global_batch_size
+	return train_loader, num_examples // data_config.global_batch_size

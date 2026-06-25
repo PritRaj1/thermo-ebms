@@ -14,7 +14,6 @@ class neuralEBM(nnx.Module):
 		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
-		self.train_idx = 0
 		self.num_temps = -1
 		self.base = "neural"
 

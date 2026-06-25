@@ -58,8 +58,8 @@ class KAEM(neuralEBM):
 	def energy(self, z: jax.Array) -> jax.Array():
 		return jnp.take_along_axis(self.ebm.f(z), self.component, axis=1).sum()
 
-	def update_grid(self, z: jax.Array) -> None:
-		self.ebm.f.update_grid(z, self.train_idx)
+	def update_grid(self, z: jax.Array, train_idx: int) -> None:
+		self.ebm.f.update_grid(z, train_idx)
 
 	def init_gauss(self) -> None:
 		"""Adapt Gauss-Legendre integration domain"""

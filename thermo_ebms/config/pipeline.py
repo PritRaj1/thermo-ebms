@@ -14,7 +14,6 @@ class LoggingConfig:
 	logdir: str = "./logs"
 	ckpt_dir: str = "./checkpoints"
 	ckpt_every: int = 20
-	eval_every: int = 10
 	sample_every: int = 10
 	num_samples: int = 128
 

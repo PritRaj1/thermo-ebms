@@ -19,8 +19,6 @@ def update(
 	loss_val, grads = nnx.value_and_grad(loss_fn)(model)
 	updates, new_opt_st = tx.update(grads, opt_st)
 	nnx.update(model, updates)
-
-	model.train_idx += 1
 	return model, new_opt_st, loss_val
 
 
@@ -29,6 +27,7 @@ def train_step(
 	opt_st: nnx.OptState,
 	model: nnx.Module,
 	x: jax.Array,
+	train_idx: int,
 	key: jax.Array,
 ) -> tuple[nnx.Module, nnx.OptState, jax.Array, jax.Array]:
 	key, prior_key, posterior_key = jax.random.split(key, 3)
@@ -39,7 +38,7 @@ def train_step(
 		model.adapt_temps(x, z_post)
 
 	if (model.base == "kaem") and hasattr(model.ebm.f.layers[0], "grid"):
-		model.update_grid(z_post)
+		model.update_grid(z_post, train_idx)
 
 	model.train()
 	new_model, new_st, loss = update(tx, opt_st, model, x, z_post, z_prior)

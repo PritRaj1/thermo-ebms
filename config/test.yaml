@@ -72,7 +72,6 @@ logging:
   logdir: /tmp
   ckpt_dir: /tmp
   ckpt_every: 1
-  eval_every: 1
   sample_every: 1
   num_samples: 10
 
