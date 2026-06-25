@@ -47,4 +47,4 @@ class mcmc_sampler(nnx.Module):
 			return (z, newkey), None
 
 		(z0, _), _ = jax.lax.scan(step, (z0, runkey), xs=jnp.arange(self.run_iters))
-		return z0
+		return jax.lax.stop_gradient(z0)

@@ -25,10 +25,19 @@ def virtual_cluster():
 		del os.environ["XLA_FLAGS"]
 
 
+def pytest_addoption(parser):
+	parser.addoption(
+		"--run-slow",
+		action="store_true",
+		default=False,
+		help="Run slow tests",
+	)
+
+
 @pytest.fixture
 def run_slow(request):
 	if not request.config.getoption("--run-slow"):
-		pytest.skip("need --run-slow option to run")
+		pytest.skip("Skipping slow test (use --run-slow)")
 
 
 def test_run_multinode(tmp_path, virtual_cluster, run_slow):

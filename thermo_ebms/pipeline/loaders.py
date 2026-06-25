@@ -51,7 +51,7 @@ def get_dataloader(
 		data_source=source,
 		sampler=sampler,
 		operations=operations,
-		worker_count=4,
+		worker_count=1,
 	)
 
 	return data_loader

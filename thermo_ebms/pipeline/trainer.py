@@ -63,8 +63,8 @@ class ebmTrainer:
 		)
 
 		ckpt_every = config.logging.ckpt_every * self.updates_per_epoch
-		self.eval_every = config.logging.eval_every * self.updates_per_epoch
-		self.sample_every = config.logging.sample_every * self.updates_per_epoch
+		self.eval_every = config.logging.eval_every
+		self.sample_every = config.logging.sample_every
 		self.num_samples = config.logging.num_samples
 
 		self.is_host0 = jax.process_index() == 0
@@ -92,21 +92,18 @@ class ebmTrainer:
 		)
 
 	def train_epoch(self, key: jax.Array, epoch: int):
-		running_loss = 0.0
 		for _, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x_sharded = jax.device_put(batch["x"], self.batch_sharding)
 			key_idx = jax.random.fold_in(key, int(self.model.train_idx))
 			self.model, self.opt_st, loss, _ = train_step(
 				self.tx, self.opt_st, self.model, x_sharded, key_idx
 			)
-			running_loss += loss
-
-		if self.is_host0:
-			self.writer.write_scalars(
-				self.model.train_idx,
-				{"train_loss": running_loss / self.updates_per_epoch},
-			)
-			self.progress(epoch)
+			if self.is_host0:
+				self.writer.write_scalars(
+					self.model.train_idx,
+					{"batch_loss": loss},
+				)
+				self.progress(self.model.train_idx)
 
 		if epoch % self.eval_every == 0:
 			running_loss = 0.0
@@ -120,19 +117,20 @@ class ebmTrainer:
 
 			if self.is_host0:
 				self.writer.write_scalars(
-					epoch, {"test_loss": running_loss / num_batches}
+					self.model.train_idx, {"test_loss": running_loss / num_batches}
 				)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
 			x, key = self.model(key, self.num_samples)
-			self.writer.write_images(epoch, {"generated_batch": x})
+			self.writer.write_images(self.model.train_idx, {"generated_batch": x})
+			del x
 
 		if self.is_host0:
 			self.ckpt_manager.save(
 				self.model.train_idx,
 				args=ocp.args.StandardSave(
 					{
-						"model": self.model,
+						"model": nnx.state(self.model),
 						"opt_state": self.opt_st,
 						"rng": key,
 						"step": self.model.train_idx,

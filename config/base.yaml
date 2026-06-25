@@ -4,7 +4,7 @@ defaults:
   - _self_
 
 model:
-  z_dim: 80
+  z_dim: 41
   seed: 0
 
   ebm:
