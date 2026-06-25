@@ -101,7 +101,7 @@ class ebmTrainer:
 			if self.is_host0:
 				self.writer.write_scalars(
 					self.model.train_idx,
-					{"batch_loss": loss},
+					{"batch_loss": float(loss)},
 				)
 				self.progress(self.model.train_idx)
 
@@ -112,7 +112,7 @@ class ebmTrainer:
 				x_sharded = jax.device_put(batch["x"], self.batch_sharding)
 				eval_key = jax.random.fold_in(key_idx, num_batches)
 				loss, _ = eval_step(self.model, x_sharded, eval_key)
-				running_loss += loss
+				running_loss += float(loss)
 				num_batches += 1
 
 			if self.is_host0:

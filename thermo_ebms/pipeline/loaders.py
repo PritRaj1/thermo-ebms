@@ -30,9 +30,7 @@ def get_dataloader(
 
 	sampler = grain.IndexSampler(
 		num_records=len(source),
-		num_epochs=None  # Infinite stream for train so orbax can resume mid-epoch
-		if is_training
-		else 1,  # 1 epoch in eval
+		num_epochs=1,
 		shard_options=grain.ShardOptions(
 			shard_index=jax.process_index(),
 			shard_count=jax.process_count(),
@@ -44,14 +42,14 @@ def get_dataloader(
 
 	operations = [
 		PreprocessTransform(),
-		grain.Batch(batch_size=batch_size, drop_remainder=is_training),
+		grain.Batch(batch_size=batch_size, drop_remainder=True),
 	]
 
 	data_loader = grain.DataLoader(
 		data_source=source,
 		sampler=sampler,
 		operations=operations,
-		worker_count=1,
+		worker_count=0,
 	)
 
 	return data_loader

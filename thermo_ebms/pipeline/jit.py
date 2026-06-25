@@ -1,6 +1,5 @@
 import jax
 from flax import nnx
-import optax
 
 
 @nnx.jit(static_argnums=(0,))
@@ -11,20 +10,18 @@ def update(
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
-) -> jax.Array:
-
+):
 	def loss_fn(m):
 		cd = m.ebm.loss(z_post, z_prior)
 		recon = m.loss(x, z_post, z_prior)
 		return cd + recon
 
 	loss_val, grads = nnx.value_and_grad(loss_fn)(model)
-	graph, ps, st = nnx.split(model, nnx.Param, ...)
-	updates, new_opt_st = tx.update(grads, opt_st, ps)
-	new_ps = optax.apply_updates(ps, updates)
-	new_model = nnx.merge(graph, new_ps, st)
-	new_model.train_idx += 1
-	return new_model, new_opt_st, loss_val
+	updates, new_opt_st = tx.update(grads, opt_st)
+	nnx.update(model, updates)
+
+	model.train_idx += 1
+	return model, new_opt_st, loss_val
 
 
 def train_step(

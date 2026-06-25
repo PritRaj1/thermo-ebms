@@ -22,6 +22,10 @@ def get_gauss(
 	return nodes, weights
 
 
+def search_one(cdf_1d: jax.Array, u_1d: jax.Array) -> jax.Array:
+	return jnp.searchsorted(cdf_1d, u_1d, side="right")
+
+
 class KAEM(neuralEBM):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
@@ -92,17 +96,17 @@ class KAEM(neuralEBM):
 
 	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
 		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
-		idx = jnp.sum(
-			cdf <= u, axis=-1, keepdims=True
-		)  # [first cdf > u] == [count num cdf <= u]
-		idx0 = idx.clip(min=0, max=cdf.shape[-1] - 2)
-		idx1 = idx0 + 1
-
-		# Quadrature bin bounds
+		cdf_flat = cdf.reshape(-1, cdf.shape[-1])
+		u_flat = u.reshape(-1)
+		idx = jax.vmap(search_one)(cdf_flat, u_flat).reshape(u.shape)
 		nodes = jnp.broadcast_to(
 			self.nodes.T[None, None, :, :],
 			(u.shape[0], 1, self.z_dim, self.nodes.shape[0]),
 		)
+
+		# Quadrature bin bounds
+		idx0 = idx.clip(min=0, max=cdf.shape[-1] - 2)
+		idx1 = idx0 + 1
 		cdf0 = jnp.take_along_axis(cdf, idx0, axis=-1).squeeze(-1)
 		cdf1 = jnp.take_along_axis(cdf, idx1, axis=-1).squeeze(-1)
 		z0 = jnp.take_along_axis(nodes, idx0, axis=-1).squeeze(-1)

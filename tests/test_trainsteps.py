@@ -28,12 +28,12 @@ def test_mle():
 
 	before_flat = jax.tree_util.tree_leaves(params_before)
 	after_flat = jax.tree_util.tree_leaves(params_after)
+	diffs = jnp.stack(
+		[jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
+	)
 
-	diffs = [jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
-
-	total_change = jnp.max(jnp.stack(diffs))
-	assert jnp.isfinite(total_change)
-	assert total_change > 0.0, "Parameters did not change after update"
+	total_change = jnp.max(diffs)
+	assert float(total_change) > 0.0, "Parameters did not change after update"
 
 
 def test_thermo():
@@ -54,9 +54,9 @@ def test_thermo():
 
 	before_flat = jax.tree_util.tree_leaves(params_before)
 	after_flat = jax.tree_util.tree_leaves(params_after)
+	diffs = jnp.stack(
+		[jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
+	)
 
-	diffs = [jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
-
-	total_change = jnp.max(jnp.stack(diffs))
-	assert jnp.isfinite(total_change)
-	assert total_change > 0.0, "Parameters did not change after update"
+	total_change = jnp.max(diffs)
+	assert float(total_change) > 0.0, "Parameters did not change after update"
