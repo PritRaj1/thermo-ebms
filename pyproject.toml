@@ -27,6 +27,8 @@ train = [
     "pyyaml>=6.0.3",
     "h5py",
     "tensorboard>=2.20.0",
+    "beautifulsoup4>=4.15.0",
+    "pillow>=12.2.0",
 ]
 
 eval = [

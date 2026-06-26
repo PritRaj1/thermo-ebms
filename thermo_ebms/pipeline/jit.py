@@ -43,15 +43,3 @@ def train_step(
 	model.train()
 	new_model, new_st, loss = update(tx, opt_st, model, x, z_post, z_prior)
 	return new_model, new_st, loss, key
-
-
-@nnx.jit
-def mse(x: jax.Array, x_gen: jax.Array) -> jax.Array:
-	return ((x - x_gen) ** 2).mean()
-
-
-def eval_step(
-	model: nnx.Module, x: jax.Array, key: jax.Array
-) -> tuple[jax.Array, jax.Array]:
-	x_gen, key = model(key, x.shape[0])
-	return mse(x, x_gen), key

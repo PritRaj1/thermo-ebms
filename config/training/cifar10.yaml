@@ -1,10 +1,10 @@
 dataset: cifar10
 epochs: 10
 global_batch_size: 32
+image_res: 32
 
 model_overrides:
   gen:
-    image_res: 32
     blocks:
       - channels: 256
         kernel_size: 4

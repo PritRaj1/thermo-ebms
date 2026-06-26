@@ -147,7 +147,7 @@ class KAEM(neuralEBM):
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		key = self.sample_mixture(key, N)
-		return jax.lax.stop_gradient(self._sample_prior(key, N))
+		return self._sample_prior(key, N)
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()

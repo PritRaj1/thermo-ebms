@@ -30,7 +30,7 @@ class mcmc_sampler(nnx.Module):
 			z, newkey = carry
 			newkey, subkey = jax.random.split(newkey)
 			eps = jax.random.normal(subkey, z.shape)
-			z += self.eta * score(z) + jnp.sqrt(2 * self.eta) * eps
+			z = z + self.eta * score(z) + jnp.sqrt(2 * self.eta) * eps
 
 			if xchange_bool:
 
@@ -47,4 +47,4 @@ class mcmc_sampler(nnx.Module):
 			return (z, newkey), None
 
 		(z0, _), _ = jax.lax.scan(step, (z0, runkey), xs=jnp.arange(self.run_iters))
-		return jax.lax.stop_gradient(z0)
+		return z0

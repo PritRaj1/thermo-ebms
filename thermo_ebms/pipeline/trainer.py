@@ -92,7 +92,7 @@ class ebmTrainer:
 		)
 
 	def train_epoch(self, key, epoch):
-		train_idx = epoch
+		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)

@@ -16,8 +16,8 @@ model:
       numsteps: 60
     optim:
       lr_init: 0.00002
-      lr_end: 0.00001
-      lr_decay: 0.975
+      lr_end: 0.00002
+      lr_decay: 1.0
       beta1: 0.999
       beta2: 0.5
 
@@ -30,8 +30,8 @@ model:
       numsteps: 20
     optim:
       lr_init: 0.0001
-      lr_end: 0.00005
-      lr_decay: 0.975
+      lr_end: 0.0001
+      lr_decay: 1.0
       beta1: 0.999
       beta2: 0.5
 
@@ -42,6 +42,7 @@ model:
     kan:
       basis: chebyshev
       chebyshev:
+        D: 5
       grid_updating:
         numgrid: 10
         update_frequency: 100
@@ -53,12 +54,12 @@ logging:
   logdir: runs/${run_name}
   ckpt_dir: runs/${run_name}
   ckpt_every: 20
-  sample_every: 10
+  sample_every: 1
   num_samples: 100
 
 lr_schedule:
-  epoch_begin: 1
-  epoch_step: 1
+  epoch_begin: 0
+  epoch_step: 0
 
 unbiased_metrics:
   batch_size_to_generate: 50

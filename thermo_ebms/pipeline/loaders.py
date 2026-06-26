@@ -1,5 +1,6 @@
 import jax
 import numpy as np
+from PIL import Image
 import grain.python as grain
 import tensorflow_datasets as tfds
 from typing import Any
@@ -15,14 +16,23 @@ def test_data():
 
 
 class PreprocessTransform(grain.MapTransform):
+	def __init__(self, image_res: int | None = None):
+		self.image_res = image_res
+
 	def map(self, sample: dict[str, Any]) -> dict[str, Any]:
-		image = sample["image"].astype(np.float32)
-		image = (image / 127.5) - 1.0
+		image = sample["image"]
+
+		if self.image_res is not None:
+			image = np.array(
+				Image.fromarray(image).resize((self.image_res, self.image_res))
+			)
+
+		image = (image.astype(np.float32) / 127.5) - 1.0
 		return {"x": image}
 
 
 def get_dataloader(
-	name: str, split: str, batch_size: int, seed: int
+	name: str, split: str, batch_size: int, seed: int, image_res: int | None = None
 ) -> grain.DataLoader:
 	"""Helper to build a single grain dataset using the official DataLoader API."""
 	is_training = split == "train"
@@ -41,7 +51,7 @@ def get_dataloader(
 	)
 
 	operations = [
-		PreprocessTransform(),
+		PreprocessTransform(image_res=image_res),
 		grain.Batch(batch_size=batch_size, drop_remainder=True),
 	]
 
@@ -60,7 +70,8 @@ def get_loaders(
 ) -> tuple[grain.IterDataset, grain.IterDataset]:
 	name = data_config.dataset
 	batch_size = data_config.global_batch_size // jax.process_count()
-	train_loader = get_dataloader(name, "train", batch_size, seed)
+	image_res = data_config.image_res
+	train_loader = get_dataloader(name, "train", batch_size, seed, image_res=image_res)
 
 	num_examples = 50
 	if name != "fake32":

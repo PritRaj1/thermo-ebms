@@ -7,6 +7,7 @@ class TrainingConfig:
 	dataset: str = "cifar10"
 	epochs: int = 100
 	global_batch_size: int = 128
+	image_res: int = 32
 
 
 @dataclass

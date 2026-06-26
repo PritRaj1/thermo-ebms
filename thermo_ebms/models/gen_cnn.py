@@ -63,7 +63,6 @@ class GEN(nnx.Module):
 					padding=last.padding,
 				),
 			),
-			bn(config.img_channels),
 			jax.nn.tanh,
 		]
 
