@@ -123,7 +123,7 @@ class KAEM(neuralEBM):
 
 		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q
 		f = jnp.take_along_axis(
-			self.ebm(nodes)[None, :, :, :],  # Unsqueeze num_samples
+			self.ebm(nodes)[None, :, :, :], # Unsqueeze num_samples
 			self.component[:, None, :, :],  # Unsqueeze N_quad
 			axis=2,
 		)
@@ -147,7 +147,7 @@ class KAEM(neuralEBM):
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		key = self.sample_mixture(key, N)
-		return self._sample_prior(key, N)
+		return jax.lax.stop_gradient(self._sample_prior(key, N))
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()

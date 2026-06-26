@@ -15,7 +15,7 @@ class OptConfig:
 	lr_end: float = 0.00002
 	lr_decay: float = 0.998
 	beta1: float = 0.999
-	beta2: float = 0.5
+	beta2: float = 0.9
 	begin: int = 0
 	step: int = 0
 
@@ -41,6 +41,7 @@ class GENConfig:
 	img_channels: int = 3
 	gaussian_stddev: float = 0.3
 	leakyrelu_leak: float = 0.2
+	batchnorm: bool = False
 	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
 	blocks: Sequence[ConvBlock] = field(
 		default_factory=lambda: [

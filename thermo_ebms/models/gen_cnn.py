@@ -28,6 +28,8 @@ class GEN(nnx.Module):
 			)
 
 		def bn(c):
+			if not config.batchnorm:
+				return nnx.Identity()
 			return nnx.BatchNorm(
 				num_features=c,
 				momentum=0.9,
@@ -82,7 +84,7 @@ class GEN(nnx.Module):
 		z: jax.Array,
 		x: jax.Array,
 	) -> jax.Array:
-		"""∇_z log p(x|z)^t ∝ ||x - g(z)||^2 / (2σ^2)"""
+		"""∇_z log p(x|z) ∝ - ||x - g(z)||^2 / (2σ^2)"""
 
 		def wrapped_ll(z_i: jax.Array) -> jax.Array:
 			return self.loss(x, z_i)
