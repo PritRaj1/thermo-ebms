@@ -15,7 +15,6 @@ from jax.experimental.multihost_utils import sync_global_devices
 from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from .opt import coupled_opt
-from .jit import train_step
 from ..config import Config
 
 
@@ -24,6 +23,22 @@ def to_uint8(x: jax.Array) -> np.ndarray:
 	x = (x + 1.0) * 127.5
 	x = np.rint(np.clip(x, 0, 255))
 	return x.astype(np.uint8)
+
+
+@nnx.jit
+def update(
+	state: nnx.ModelAndOptimizer,
+	x: jax.Array,
+	z_post: jax.Array,
+	z_prior: jax.Array,
+) -> tuple[nnx.ModelAndOptimizer, jax.Array]:
+
+	def loss_fn(model):
+		return model.ebm.loss(z_post, z_prior) + model.loss(x, z_post, z_prior)
+
+	loss, grads = nnx.value_and_grad(loss_fn)(state.model)
+	state.update(grads)
+	return state, loss
 
 
 class ebmTrainer:
@@ -50,12 +65,11 @@ class ebmTrainer:
 
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
-			self.model = model_cls(config.model, key)
-			graph, ps, st = nnx.split(self.model, nnx.Param, ...)
-			self.tx = coupled_opt(
-				self.model, config.model, config.lr_schedule, self.updates_per_epoch
+			model = model_cls(config.model, key)
+			opt = coupled_opt(
+				model, config.model, config.lr_schedule, self.updates_per_epoch
 			)
-			self.opt_st = self.tx.init(ps)
+			self.st = nnx.ModelAndOptimizer(model, opt)
 
 		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
@@ -91,14 +105,31 @@ class ebmTrainer:
 			),
 		)
 
-	def train_epoch(self, key, epoch):
+	def train_step(
+		self, x: jax.Array, train_idx: int, key: jax.Array
+	) -> tuple[jax.Array, jax.Array]:
+		key, prior_key, posterior_key = jax.random.split(key, 3)
+		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
+		z_post = self.st.model.sample_posterior(posterior_key, x)
+
+		if self.st.model.num_temps > 1:
+			self.st.model.adapt_temps(x, z_post)
+
+		if (self.st.model.base == "kaem") and hasattr(
+			self.st.model.ebm.f.layers[0], "grid"
+		):
+			self.st.model.update_grid(z_post, train_idx)
+
+		self.st.model.train()
+		self.st, loss = update(self.st, x, z_post, z_prior)
+		return loss, key
+
+	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			self.model, self.opt_st, loss, key = train_step(
-				self.tx, self.opt_st, self.model, x, train_idx, subkey
-			)
+			loss, key = self.train_step(x, train_idx, subkey)
 
 			train_idx += 1
 			loss_val = float(jax.device_get(loss))
@@ -108,7 +139,7 @@ class ebmTrainer:
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
-			x, key = self.model(key, self.num_samples)
+			x, key = self.st.model(key, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": to_uint8(x)})
 
 		if self.is_host0:
@@ -116,8 +147,7 @@ class ebmTrainer:
 				train_idx,
 				args=ocp.args.StandardSave(
 					{
-						"model": nnx.state(self.model),
-						"opt_state": self.opt_st,
+						"train_state": self.st,
 						"rng": key,
 						"step": train_idx,
 					}
@@ -135,7 +165,7 @@ class ebmTrainer:
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
-				x, key = self.model(key, self.final_bsize)
+				x, key = self.st.model(key, self.final_bsize)
 
 				dataset = f.create_dataset(
 					"samples",
@@ -152,7 +182,7 @@ class ebmTrainer:
 				idx = len(x)
 				while idx < self.final_samples:
 					bs = min(self.final_bsize, self.final_samples - idx)
-					x, key = self.model(key, bs)
+					x, key = self.st.model(key, bs)
 					dataset[idx : idx + bs] = to_uint8(x)
 					idx += bs
 

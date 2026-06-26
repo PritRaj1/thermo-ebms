@@ -123,7 +123,7 @@ class KAEM(neuralEBM):
 
 		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q
 		f = jnp.take_along_axis(
-			self.ebm(nodes)[None, :, :, :], # Unsqueeze num_samples
+			self.ebm(nodes)[None, :, :, :],  # Unsqueeze num_samples
 			self.component[:, None, :, :],  # Unsqueeze N_quad
 			axis=2,
 		)

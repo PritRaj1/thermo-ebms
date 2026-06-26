@@ -29,7 +29,7 @@ class GEN(nnx.Module):
 
 		def bn(c):
 			if not config.batchnorm:
-				return nnx.Identity()
+				return nnx.identity
 			return nnx.BatchNorm(
 				num_features=c,
 				momentum=0.9,
