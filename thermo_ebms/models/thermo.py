@@ -32,7 +32,7 @@ class _Thermo:
 		"""
 
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return jnp.sum((x - self.gen(z_t)) ** 2, axis=(1, 2, 3))
+			return -jnp.sum((x - self.gen(z_t)) ** 2, axis=(1, 2, 3))
 
 		ll = jax.vmap(wrapped_ll)(z)
 		rho = ll.std(axis=1)
