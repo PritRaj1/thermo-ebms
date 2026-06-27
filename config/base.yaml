@@ -55,8 +55,8 @@ logging:
   logdir: runs/${run_name}
   ckpt_dir: runs/${run_name}
   ckpt_every: 20
-  sample_every: 1
-  num_samples: 100
+  sample_every: 10
+  num_samples: 50
 
 lr_schedule:
   epoch_begin: 0

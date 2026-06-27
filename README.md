@@ -20,6 +20,7 @@ Training:
 ```python
 python main.py model=thermo_kaem training=celeba # single train job
 python runner.py # multiple jobs
+tensorboard --logdir=runs # launch tensorboard
 ```
 
 Unbiased image metrics:
@@ -41,8 +42,8 @@ The original motivation for this repo, (during my [2023/24 MEng thesis](docs/rep
   <em>Grid of CelebA face samples with LR gradient variance shown beneath each</em>
 </p>
 
-However, the MEng report is old a has some technical inaccuracies! I've learned a lot since undergrad, and the implementation in this package reflects the updated stats of my newer work [KAEM](https://pritraj1.github.io/kaem.html), which offers several major corrections in the learning gradient and TI derivations.
+However, the MEng report is old a has some technical inaccuracies! I've learned a lot since undergrad, and the implementation in this package reflects the updated stats of my newer work KAEM [(summarised ehre)](https://pritraj1.github.io/portfolio/kaem.html), which offers several major corrections in the learning gradient and TI derivations.
 
-In KAEM, TI and annealing are presented as an interpretable, more parallelisable alternative to diffusion modeling to improve mixing in EBMs, ([explained here](https://pritraj1.github.io/defaults.html)).
+In KAEM, TI and annealing are presented as an interpretable, more parallelisable alternative to diffusion modeling to improve mixing in EBMs, ([explained here](https://pritraj1.github.io/portfolio/defaults.html)).
 
 A [Julia sister repo](https://github.com/thezettascale/KAEM) has also been implemented, which could be faster for single-device training due to its use of [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) and [EnzymeMLIR](https://github.com/EnzymeAD/enzyme). Enzyme is also available for jax via [Enzyme-JAX](https://github.com/EnzymeAD/Enzyme-JAX), however it's still experimental and not yet suited to deep learning. That said, jax/grain are preferable for distributed training.
