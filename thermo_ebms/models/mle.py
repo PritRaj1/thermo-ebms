@@ -20,7 +20,7 @@ class _MLE:
 		return self._sample_posterior(key, x)
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
-		return self.gen.loss(x, z_post)
+		return self.gen.loss(x, z_post) / x.shape[0]
 
 
 class mleEBM(_MLE, neuralEBM):
