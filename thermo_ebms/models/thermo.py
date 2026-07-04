@@ -83,7 +83,7 @@ class _Thermo:
 		t = self.temps[:, None, None, None, None]
 
 		def wrapped_gradll(z: jax.Array) -> jax.Array:
-			return self.gen.posterior_score(z, x)
+			return self.gen.llhood_score(z, x)
 
 		def score(z: jax.Array) -> jax.Array:
 			return (t * jax.vmap(wrapped_gradll)(z)).sum() + self.ebm.prior_score(z)

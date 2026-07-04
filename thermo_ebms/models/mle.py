@@ -11,7 +11,7 @@ class _MLE:
 		z0, key = self.mcmc_init(key, x.shape[0])
 
 		def score(z: jax.Array) -> jax.Array:
-			return self.gen.posterior_score(z, x) + self.ebm.prior_score(z)
+			return self.gen.llhood_score(z, x) + self.ebm.prior_score(z)
 
 		return self.posterior_sampler(key, score, z0)
 

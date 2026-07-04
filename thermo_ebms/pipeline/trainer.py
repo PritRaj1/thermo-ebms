@@ -66,9 +66,7 @@ class ebmTrainer:
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
 			model = model_cls(config.model, key)
-			opt = coupled_opt(
-				model, config.model, config.lr_schedule, self.updates_per_epoch
-			)
+			opt = coupled_opt(config.model, config.lr_schedule, self.updates_per_epoch)
 			self.st = nnx.ModelAndOptimizer(model, opt)
 
 		self.num_epochs = config.training.epochs
@@ -186,6 +184,6 @@ class ebmTrainer:
 					dataset[idx : idx + bs] = to_uint8(x)
 					idx += bs
 
-		sync_global_devices("post_gengen_sync")
+		sync_global_devices("post_gen_sync")
 		self.ckpt_manager.wait_until_finished()
 		return key

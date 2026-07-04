@@ -79,7 +79,7 @@ class GEN(nnx.Module):
 		"""Gaussian/pixel loss"""
 		return ((x - self(z_post)) ** 2).sum()
 
-	def posterior_score(
+	def llhood_score(
 		self,
 		z: jax.Array,
 		x: jax.Array,

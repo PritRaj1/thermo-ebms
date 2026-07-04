@@ -56,4 +56,4 @@ class EBM(nnx.Module):
 		if jnp.ndim(z_post) > jnp.ndim(z_prior):
 			z_post = z_post[-1, :, :, :, :]  # Final thermo samples = posterior
 
-		return -(self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]
+		return (self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]
