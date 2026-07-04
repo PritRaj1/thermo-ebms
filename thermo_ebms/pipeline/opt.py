@@ -1,5 +1,4 @@
 import optax
-import flax.nnx as nnx
 from collections.abc import Callable
 
 from ..config import ModelConfig, OptConfig, ScheduleConfig

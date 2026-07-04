@@ -123,13 +123,13 @@ class _Thermo:
 		x_gen = self.gen(z.reshape(x.shape[0] * self.num_temps, *z.shape[2:])).reshape(
 			self.num_temps, x.shape[0], *x.shape[1:]
 		)
-		expectations = (
+		expectations = -(
 			((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)).mean(axis=1)
 		)
 
 		delta_t = self.temps[1:] - self.temps[:-1]
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
-		return 0.5 * trapz.sum()
+		return -0.5 * trapz.sum()
 
 
 class thermoEBM(_Thermo, neuralEBM):

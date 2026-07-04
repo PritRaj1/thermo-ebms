@@ -20,6 +20,7 @@ model:
   gen:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.1
+    batchnorm: True
     blocks:
       - channels: 16
         kernel_size: 4
@@ -34,7 +35,6 @@ model:
         stride: 2
         padding: SAME
     img_channels: 3
-    image_res: 32
     mcmc:
       stepsize: 0.01
       numsteps: 5
@@ -67,6 +67,7 @@ training:
   epochs: 1
   global_batch_size: 32
   dataset: fake32
+  image_res: 32
 
 logging:
   logdir: /tmp

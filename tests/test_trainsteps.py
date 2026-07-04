@@ -1,62 +1,42 @@
 import jax
-import sys
 import jax.numpy as jnp
 from flax import nnx
-from absl import flags
 
-from thermo_ebms.pipeline import ebmTrainer, train_step
+from thermo_ebms.pipeline import ebmTrainer
 from utils import make_config
 
 cfg = make_config()
 
 
-def test_mle():
-	if not flags.FLAGS.is_parsed():
-		flags.FLAGS(sys.argv, known_only=True)
-
+def params_change(trainer, x):
 	key = jax.random.key(0)
+
+	params_before = nnx.state(trainer.st.model, nnx.Param)
+	loss, new_key = trainer.train_step(x, 1, key)
+	params_after = nnx.state(trainer.st.model, nnx.Param)
+
+	diffs = jax.tree.map(
+		lambda a, b: jnp.max(jnp.abs(a - b)), params_before, params_after
+	)
+	total_max_change = float(
+		jax.tree_util.tree_reduce(jnp.maximum, diffs, initializer=0.0)
+	)
+
+	assert total_max_change > 1e-8, (
+		f"Parameters did not change. Max change = {total_max_change:.2e}"
+	)
+	return loss, new_key
+
+
+def test_mle():
 	cfg.model.thermo.num_temps = -1
 	trainer = ebmTrainer(cfg)
 	batch = next(iter(trainer.train_loader))
-	x = batch["x"]
-
-	graph, params_before, state = nnx.split(trainer.model, nnx.Param, ...)
-	trainer.model, trainer.opt_st, loss, key = train_step(
-		trainer.tx, trainer.opt_st, trainer.model, x, key
-	)
-	_, params_after, _ = nnx.split(trainer.model, nnx.Param, ...)
-
-	before_flat = jax.tree_util.tree_leaves(params_before)
-	after_flat = jax.tree_util.tree_leaves(params_after)
-	diffs = jnp.stack(
-		[jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
-	)
-
-	total_change = jnp.max(diffs)
-	assert float(total_change) > 0.0, "Parameters did not change after update"
+	params_change(trainer, batch["x"])
 
 
 def test_thermo():
-	if not flags.FLAGS.is_parsed():
-		flags.FLAGS(sys.argv, known_only=True)
-
-	key = jax.random.key(0)
 	cfg.model.thermo.num_temps = 10
 	trainer = ebmTrainer(cfg)
 	batch = next(iter(trainer.train_loader))
-	x = batch["x"]
-
-	graph, params_before, state = nnx.split(trainer.model, nnx.Param, ...)
-	trainer.model, trainer.opt_st, loss, key = train_step(
-		trainer.tx, trainer.opt_st, trainer.model, x, key
-	)
-	_, params_after, _ = nnx.split(trainer.model, nnx.Param, ...)
-
-	before_flat = jax.tree_util.tree_leaves(params_before)
-	after_flat = jax.tree_util.tree_leaves(params_after)
-	diffs = jnp.stack(
-		[jnp.max(jnp.abs(a - b)) for a, b in zip(before_flat, after_flat)]
-	)
-
-	total_change = jnp.max(diffs)
-	assert float(total_change) > 0.0, "Parameters did not change after update"
+	params_change(trainer, batch["x"])

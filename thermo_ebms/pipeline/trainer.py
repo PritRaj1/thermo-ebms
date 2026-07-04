@@ -31,14 +31,14 @@ def update(
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
-) -> tuple[nnx.ModelAndOptimizer, jax.Array]:
+) -> jax.Array:
 
 	def loss_fn(model):
 		return model.ebm.loss(z_post, z_prior) + model.loss(x, z_post, z_prior)
 
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model)
 	state.update(grads)
-	return state, loss
+	return loss
 
 
 class ebmTrainer:
@@ -67,7 +67,7 @@ class ebmTrainer:
 			key = nnx.Rngs(key_init)
 			model = model_cls(config.model, key)
 			opt = coupled_opt(config.model, config.lr_schedule, self.updates_per_epoch)
-			self.st = nnx.ModelAndOptimizer(model, opt)
+			self.st = nnx.ModelAndOptimizer(model, opt, wrt=nnx.Param)
 
 		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
@@ -119,7 +119,7 @@ class ebmTrainer:
 			self.st.model.update_grid(z_post, train_idx)
 
 		self.st.model.train()
-		self.st, loss = update(self.st, x, z_post, z_prior)
+		loss = update(self.st, x, z_post, z_prior)
 		return loss, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
