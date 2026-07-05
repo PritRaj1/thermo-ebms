@@ -2,12 +2,13 @@ import h5py
 import yaml
 import jax
 import os
-from flax import nnx
 import numpy as np
+from flax import nnx
+import jax.numpy as jnp
+from pathlib import Path
 import orbax.checkpoint as ocp
 from clu import metric_writers
 from clu import periodic_actions
-from pathlib import Path
 from omegaconf import OmegaConf
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 from jax.experimental.multihost_utils import sync_global_devices
@@ -32,14 +33,17 @@ def update(
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
-) -> jax.Array:
+) -> tuple[jax.Array, jax.Array]:
 
 	def loss_fn(m):
 		return m.ebm.loss(z_post, z_prior) + m.loss(x, z_post, z_prior)
 
 	loss, grads = nnx.value_and_grad(loss_fn)(model)
 	tx.update(model, grads)
-	return loss
+	grads_flat = jnp.concatenate(
+		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
+	)
+	return loss, jnp.linalg.norm(grads_flat)
 
 
 class ebmTrainer:
@@ -104,6 +108,12 @@ class ebmTrainer:
 			),
 		)
 
+		self.profiler = periodic_actions.Profile(
+			logdir=self.logdir,
+			num_profile_steps=5,
+			profile_duration_ms=2000,
+		)
+
 	def train_step(
 		self, x: jax.Array, train_idx: int, key: jax.Array
 	) -> tuple[jax.Array, jax.Array]:
@@ -118,21 +128,23 @@ class ebmTrainer:
 			self.model.update_grid(z_post, train_idx)
 
 		self.model.train()
-		loss = update(self.model, self.opt, x, z_post, z_prior)
-		return loss, key
+		loss, grad_norm = update(self.model, self.opt, x, z_post, z_prior)
+		return loss, grad_norm, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, key = self.train_step(x, train_idx, subkey)
+			loss, grad_norm, key = self.train_step(x, train_idx, subkey)
+			self.profiler(train_idx)
 
 			train_idx += 1
 			loss_val = float(jax.device_get(loss))
 
 			if self.is_host0:
 				self.writer.write_scalars(train_idx, {"batch_loss": loss_val})
+				self.writer.write_scalars(train_idx, {"grad_norm": grad_norm})
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
