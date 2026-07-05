@@ -128,8 +128,6 @@ class ebmTrainer:
 
 		self.profiler = periodic_actions.Profile(
 			logdir=self.logdir,
-			num_profile_steps=5,
-			profile_duration_ms=2000,
 		)
 
 	def train_step(
