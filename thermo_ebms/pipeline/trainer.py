@@ -2,6 +2,7 @@ import h5py
 import yaml
 import jax
 import os
+import optax
 import numpy as np
 from flax import nnx
 import jax.numpy as jnp
@@ -10,13 +11,13 @@ import orbax.checkpoint as ocp
 from clu import metric_writers
 from clu import periodic_actions
 from omegaconf import OmegaConf
+from collections.abc import Callable
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 from jax.experimental.multihost_utils import sync_global_devices
 
 from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
-from .opt import coupled_opt
-from ..config import Config
+from ..config import Config, OptConfig
 
 
 def to_uint8(x: jax.Array) -> np.ndarray:
@@ -24,6 +25,21 @@ def to_uint8(x: jax.Array) -> np.ndarray:
 	x = (x + 1.0) * 127.5
 	x = np.rint(np.clip(x, 0, 255))
 	return x.astype(np.uint8)
+
+
+def adam(config: OptConfig, updates_per_epoch: int) -> Callable:
+	step = config.decay_step * updates_per_epoch
+	begin = config.decay_begin * updates_per_epoch
+
+	schedule = optax.exponential_decay(
+		init_value=config.lr_init,
+		transition_steps=step,
+		decay_rate=config.lr_decay,
+		transition_begin=begin,
+		end_value=config.lr_end,
+	)
+
+	return optax.adam(schedule, config.beta1, config.beta2)
 
 
 @nnx.jit
@@ -36,7 +52,9 @@ def update(
 ) -> tuple[jax.Array, jax.Array]:
 
 	def loss_fn(m):
-		return m.ebm.loss(z_post, z_prior) + m.loss(x, z_post, z_prior)
+		contrastive_div = m.cd_weight * m.ebm.loss(z_post, z_prior)
+		recon = m.loss(x, z_post, z_prior)
+		return contrastive_div + recon
 
 	loss, grads = nnx.value_and_grad(loss_fn)(model)
 	tx.update(model, grads)
@@ -71,7 +89,7 @@ class ebmTrainer:
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
 			self.model = model_cls(config.model, key)
-			tx = coupled_opt(config.model, config.lr_schedule, self.updates_per_epoch)
+			tx = adam(config.optim, self.updates_per_epoch)
 			self.opt = nnx.Optimizer(self.model, tx, wrt=nnx.Param)
 
 		self.num_epochs = config.training.epochs

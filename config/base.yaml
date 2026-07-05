@@ -5,6 +5,7 @@ defaults:
 
 model:
   z_dim: 81
+  cd_weight: 0.2
   seed: 0
 
   ebm:
@@ -14,12 +15,6 @@ model:
     mcmc:
       stepsize: 0.16
       numsteps: 60
-    optim:
-      lr_init: 0.00002
-      lr_end: 0.00002
-      lr_decay: 1.0
-      beta1: 0.999
-      beta2: 0.5
 
   gen:
     gaussian_stddev: 0.3
@@ -29,12 +24,6 @@ model:
     mcmc:
       stepsize: 0.01
       numsteps: 20
-    optim:
-      lr_init: 0.0001
-      lr_end: 0.0001
-      lr_decay: 1.0
-      beta1: 0.999
-      beta2: 0.5
 
   kaem:
     mixture: true
@@ -49,6 +38,15 @@ model:
         numgrid: 10
         update_frequency: 100
         frequency_decay: 0.998
+
+optim:
+  lr_init: 0.0001
+  lr_end: 0.0001
+  lr_decay: 1.0
+  beta1: 0.999
+  beta2: 0.5
+  decay_step: 0
+  decay_begin: 0
 
 run_name: ${model.base}_${training.dataset}
 

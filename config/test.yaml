@@ -1,5 +1,6 @@
 model:
   z_dim: 8
+  cd_weight: 0.2
   seed: 0
   base: kaem
 
@@ -10,17 +11,11 @@ model:
     mcmc:
       stepsize: 0.01
       numsteps: 5
-    optim:
-      lr_init: 1e-3
-      lr_end: 1e-4
-      lr_decay: 0.975
-      beta1: 0.999
-      beta2: 0.5
 
   gen:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.1
-    batchnorm: True
+    batchnorm: False
     blocks:
       - channels: 16
         kernel_size: 4
@@ -38,12 +33,6 @@ model:
     mcmc:
       stepsize: 0.01
       numsteps: 5
-    optim:
-      lr_init: 1e-3
-      lr_end: 1e-4
-      lr_decay: 0.975
-      beta1: 0.999
-      beta2: 0.5
 
   kaem:
     mixture: true
@@ -62,6 +51,15 @@ model:
   thermo:
     num_temps: 3
     xchange_every: 2
+
+optim:
+  lr_init: 1e-3
+  lr_end: 1e-4
+  lr_decay: 0.975
+  beta1: 0.999
+  beta2: 0.5
+  decay_begin: 0
+  decay_step: 0
 
 training:
   epochs: 1

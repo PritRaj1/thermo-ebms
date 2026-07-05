@@ -38,6 +38,11 @@ class MetricsConfig:
 
 
 @dataclass
-class ScheduleConfig:
-	begin: int = 0
-	step: int = 0
+class OptConfig:
+	lr_init: float = 0.0001
+	lr_end: float = 0.00002
+	lr_decay: float = 0.998
+	beta1: float = 0.999
+	beta2: float = 0.9
+	decay_begin: int = 0
+	decay_step: int = 0
