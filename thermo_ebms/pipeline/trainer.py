@@ -27,17 +27,18 @@ def to_uint8(x: jax.Array) -> np.ndarray:
 
 @nnx.jit
 def update(
-	state: nnx.ModelAndOptimizer,
+	model: nnx.Module,
+	tx: nnx.Optimizer,
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
 ) -> jax.Array:
 
-	def loss_fn(model):
-		return model.ebm.loss(z_post, z_prior) + model.loss(x, z_post, z_prior)
+	def loss_fn(m):
+		return m.ebm.loss(z_post, z_prior) + m.loss(x, z_post, z_prior)
 
-	loss, grads = nnx.value_and_grad(loss_fn)(state.model)
-	state.update(grads)
+	loss, grads = nnx.value_and_grad(loss_fn)(model)
+	tx.update(model, grads)
 	return loss
 
 
@@ -65,9 +66,9 @@ class ebmTrainer:
 
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
-			model = model_cls(config.model, key)
-			opt = coupled_opt(config.model, config.lr_schedule, self.updates_per_epoch)
-			self.st = nnx.ModelAndOptimizer(model, opt, wrt=nnx.Param)
+			self.model = model_cls(config.model, key)
+			tx = coupled_opt(config.model, config.lr_schedule, self.updates_per_epoch)
+			self.opt = nnx.Optimizer(self.model, tx, wrt=nnx.Param)
 
 		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
@@ -107,19 +108,17 @@ class ebmTrainer:
 		self, x: jax.Array, train_idx: int, key: jax.Array
 	) -> tuple[jax.Array, jax.Array]:
 		key, prior_key, posterior_key = jax.random.split(key, 3)
-		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
-		z_post = self.st.model.sample_posterior(posterior_key, x)
+		z_prior = self.model.sample_prior(prior_key, x.shape[0])
+		z_post = self.model.sample_posterior(posterior_key, x)
 
-		if self.st.model.num_temps > 1:
-			self.st.model.adapt_temps(x, z_post)
+		if self.model.num_temps > 1:
+			self.model.adapt_temps(x, z_post)
 
-		if (self.st.model.base == "kaem") and hasattr(
-			self.st.model.ebm.f.layers[0], "grid"
-		):
-			self.st.model.update_grid(z_post, train_idx)
+		if (self.model.base == "kaem") and hasattr(self.model.ebm.f.layers[0], "grid"):
+			self.model.update_grid(z_post, train_idx)
 
-		self.st.model.train()
-		loss = update(self.st, x, z_post, z_prior)
+		self.model.train()
+		loss = update(self.model, self.opt, x, z_post, z_prior)
 		return loss, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
@@ -137,7 +136,7 @@ class ebmTrainer:
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
-			x, key = self.st.model(key, self.num_samples)
+			x, key = self.model(key, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": to_uint8(x)})
 
 		if self.is_host0:
@@ -145,7 +144,8 @@ class ebmTrainer:
 				train_idx,
 				args=ocp.args.StandardSave(
 					{
-						"train_state": self.st,
+						"model": self.model,
+						"opt": self.opt,
 						"rng": key,
 						"step": train_idx,
 					}
@@ -163,7 +163,7 @@ class ebmTrainer:
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
-				x, key = self.st.model(key, self.final_bsize)
+				x, key = self.model(key, self.final_bsize)
 
 				dataset = f.create_dataset(
 					"samples",
@@ -180,7 +180,7 @@ class ebmTrainer:
 				idx = len(x)
 				while idx < self.final_samples:
 					bs = min(self.final_bsize, self.final_samples - idx)
-					x, key = self.st.model(key, bs)
+					x, key = self.model(key, bs)
 					dataset[idx : idx + bs] = to_uint8(x)
 					idx += bs
 
