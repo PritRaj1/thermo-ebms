@@ -10,18 +10,20 @@ cfg = make_config()
 
 def ps_change(trainer, x):
 	key = jax.random.key(0)
-
 	state_before = nnx.state(trainer.st.model, nnx.Param)
-	loss_before, _, _ = trainer.train_step(x, 1, key)
+	values_before = jax.tree.map(
+		lambda v: jnp.array(v[...]),
+		state_before,
+	)
 
+	loss_before = trainer.train_step(x, 1, key)[0]
 	loss_after, grad_norm, _ = trainer.train_step(x, 1, key)
+
 	state_after = nnx.state(trainer.st.model, nnx.Param)
-
-	def get_value(v):
-		return v[...]
-
-	values_before = jax.tree.map(get_value, state_before)
-	values_after = jax.tree.map(get_value, state_after)
+	values_after = jax.tree.map(
+		lambda v: jnp.array(v[...]),
+		state_after,
+	)
 
 	identical_per_node = jax.tree.map(
 		lambda p1, p2: jnp.allclose(p1, p2, atol=1e-7, rtol=1e-5),
