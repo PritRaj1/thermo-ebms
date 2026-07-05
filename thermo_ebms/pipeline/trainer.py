@@ -91,15 +91,6 @@ class ebmTrainer:
 			tx = adam(config.optim, self.updates_per_epoch)
 			self.st = nnx.ModelAndOptimizer(model, tx, wrt=nnx.Param)
 
-		# TOOD: remove
-		params = nnx.state(self.st.model, nnx.Param)
-		print("Number of trainable parameters:", len(jax.tree.leaves(params)))
-		print("Example param shape:", jax.tree.leaves(params)[0].shape)
-		print(
-			"First few param names:",
-			list(nnx.state(self.st.model, nnx.Param).keys())[:5],
-		)
-
 		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
 		self.final_bsize = (

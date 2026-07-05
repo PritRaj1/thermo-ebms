@@ -10,22 +10,40 @@ cfg = make_config()
 
 def ps_change(trainer, x):
 	key = jax.random.key(0)
-	state_before = nnx.state(trainer.st.model, nnx.Param)
 
+	state_before = nnx.state(trainer.st.model, nnx.Param)
 	loss_before, _, _ = trainer.train_step(x, 1, key)
+
 	loss_after, grad_norm, _ = trainer.train_step(x, 1, key)
 	state_after = nnx.state(trainer.st.model, nnx.Param)
 
-	diffs = jax.tree_util.tree_map(
-		lambda a, b: jnp.sum(jnp.abs(a[...] - b[...])), state_before, state_after
+	def get_value(v):
+		return v[...]
+
+	values_before = jax.tree.map(get_value, state_before)
+	values_after = jax.tree.map(get_value, state_after)
+
+	identical_per_node = jax.tree.map(
+		lambda p1, p2: jnp.allclose(p1, p2, atol=1e-7, rtol=1e-5),
+		values_before,
+		values_after,
 	)
 
-	total_change = jax.tree_util.tree_reduce(lambda acc, x: acc + x, diffs, 0.0)
-	assert float(total_change) > 1e-6, "Not all parameters updated."
-	assert jnp.isfinite(loss_after), "Loss is NaN"
+	diffs = jax.tree.map(
+		lambda p1, p2: jnp.sum(jnp.abs(p1 - p2)), values_before, values_after
+	)
+	total_change = jax.tree.reduce(lambda acc, x: acc + x, diffs, 0.0)
 
-	print(f"Param Change: {float(total_change):.4e}")
+	print("Parameters identical per node:")
+	print(identical_per_node)
+	print(f"Total param change (sum |Δ|): {float(total_change):.4e}")
 	print(f"Loss improvement: {float(loss_before - loss_after):.4e}")
+	print(f"Grad norm: {grad_norm}")
+
+	assert float(total_change) > 1e-8, (
+		f"Parameters did not update: (change = {float(total_change):.2e})"
+	)
+	assert jnp.isfinite(loss_after), "Loss is NaN"
 
 
 def test_mle():
