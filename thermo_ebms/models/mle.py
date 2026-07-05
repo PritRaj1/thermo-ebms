@@ -5,7 +5,7 @@ from .base import neuralEBM
 from .kaem import KAEM
 
 
-class _MLE:
+class MLE:
 	@nnx.jit
 	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		z0, key = self.mcmc_init(key, x.shape[0])
@@ -23,9 +23,11 @@ class _MLE:
 		return self.gen.loss(x, z_post) / x.shape[0]
 
 
-class mleEBM(_MLE, neuralEBM):
-	pass
+class mleEBM(MLE, neuralEBM):
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)
 
 
-class mleKAEM(_MLE, KAEM):
-	pass
+class mleKAEM(MLE, KAEM):
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)

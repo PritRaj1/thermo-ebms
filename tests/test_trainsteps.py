@@ -10,16 +10,22 @@ cfg = make_config()
 
 def ps_change(trainer, x):
 	key = jax.random.key(0)
-	param_node = trainer.model.gen.g.layers[0].kernel
+	state_before = nnx.state(trainer.st.model, nnx.Param)
 
-	val_before = jnp.array(param_node.value)
-	loss, grad_norm, _ = trainer.train_step(x, 1, key)
-	val_after = jnp.array(param_node.value)
+	loss_before, _, _ = trainer.train_step(x, 1, key)
+	loss_after, grad_norm, _ = trainer.train_step(x, 1, key)
+	state_after = nnx.state(trainer.st.model, nnx.Param)
 
-	change = jnp.sum(jnp.abs(val_before - val_after))
-	print(f"Param Change: {float(change):.4e}")
+	diffs = jax.tree_util.tree_map(
+		lambda a, b: jnp.sum(jnp.abs(a[...] - b[...])), state_before, state_after
+	)
 
-	assert float(change) > 1e-12, "Parameters did not update."
+	total_change = jax.tree_util.tree_reduce(lambda acc, x: acc + x, diffs, 0.0)
+	assert float(total_change) > 1e-6, "Not all parameters updated."
+	assert jnp.isfinite(loss_after), "Loss is NaN"
+
+	print(f"Param Change: {float(total_change):.4e}")
+	print(f"Loss improvement: {float(loss_before - loss_after):.4e}")
 
 
 def test_mle():

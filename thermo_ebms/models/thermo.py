@@ -12,16 +12,7 @@ def build_pairs(T, offset):
 	return jnp.stack([idx, idx + 1], axis=1)
 
 
-class _Thermo:
-	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
-		super().__init__(config, rngs)
-		self.num_temps = config.thermo.num_temps
-		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
-
-		# DEO exchange
-		self.i_pairs = build_pairs(self.num_temps, 0)
-		self.j_pairs = build_pairs(self.num_temps, 1)
-
+class Thermo:
 	@nnx.jit
 	def _adapt_temps(self, x: jax.Array, z: jax.Array) -> jax.Array:
 		"""
@@ -132,9 +123,23 @@ class _Thermo:
 		return -0.5 * trapz.sum()
 
 
-class thermoEBM(_Thermo, neuralEBM):
-	pass
+class thermoEBM(Thermo, neuralEBM):
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)
+		self.num_temps = config.thermo.num_temps
+		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
+
+		# DEO exchange
+		self.i_pairs = build_pairs(self.num_temps, 0)
+		self.j_pairs = build_pairs(self.num_temps, 1)
 
 
-class thermoKAEM(_Thermo, KAEM):
-	pass
+class thermoKAEM(Thermo, KAEM):
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)
+		self.num_temps = config.thermo.num_temps
+		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
+
+		# DEO exchange
+		self.i_pairs = build_pairs(self.num_temps, 0)
+		self.j_pairs = build_pairs(self.num_temps, 1)
