@@ -1,6 +1,7 @@
 import jax
-import jax.numpy as jnp
+import blackjax
 from flax import nnx
+import jax.numpy as jnp
 
 from ..config import MCMCConfig, ThermoConfig, ScoreFn, XchangeFn
 
@@ -9,6 +10,9 @@ class mcmc_sampler(nnx.Module):
 	def __init__(self, config: MCMCConfig, xchange_conf: ThermoConfig | None = None):
 		self.eta = config.stepsize
 		self.run_iters = config.numsteps
+		self.L = config.numleapfrog
+		self.alpha = config.alpha
+		self.beta = config.beta
 		self.xchange_every = -1
 
 		if xchange_conf is not None:
@@ -22,29 +26,38 @@ class mcmc_sampler(nnx.Module):
 		score: ScoreFn,
 		z0: jax.Array,
 		xchange_func: XchangeFn | None = None,
+		minibatch: jax.Array | None = None,
 	):
 		xchange_bool = (self.xchange_every > 0) and (xchange_func is not None)
 		key, runkey = jax.random.split(key)
+		kernel = blackjax.sghmc(
+			grad_estimator=score,
+			num_integration_steps=self.L,
+			alpha=self.alpha,
+			beta=self.beta,
+		)
+		state = kernel.init(z0)
 
 		def step(carry, idx):
-			z, newkey = carry
+			st, newkey = carry
 			newkey, subkey = jax.random.split(newkey)
-			eps = jax.random.normal(subkey, z.shape)
-			z = z + self.eta * score(z) + jnp.sqrt(2 * self.eta) * eps
+			st = kernel.step(subkey, st, minibatch=minibatch, step_size=self.eta)
 
 			if xchange_bool:
 
-				def swap(states):
-					return xchange_func(newkey, states, idx)
+				def swap(s):
+					return xchange_func(newkey, s, idx)
 
-				z = jax.lax.cond(
+				st = jax.lax.cond(
 					(idx % self.xchange_every == 0),
 					swap,
 					lambda s: s,
-					z,
+					st,
 				)
 
-			return (z, newkey), None
+			return (st, newkey), None
 
-		(z0, _), _ = jax.lax.scan(step, (z0, runkey), xs=jnp.arange(self.run_iters))
-		return z0
+		(state, _), _ = jax.lax.scan(
+			step, (state, runkey), xs=jnp.arange(self.run_iters)
+		)
+		return state

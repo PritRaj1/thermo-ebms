@@ -11,6 +11,10 @@ model:
     mcmc:
       stepsize: 0.01
       numsteps: 5
+      numleapfrog: 2
+      alpha: 0.01
+      beta: 0.0
+
 
   gen:
     gaussian_stddev: 0.3
@@ -33,6 +37,10 @@ model:
     mcmc:
       stepsize: 0.01
       numsteps: 5
+      numleapfrog: 2
+      alpha: 0.01
+      beta: 0.0
+
 
   kaem:
     mixture: true

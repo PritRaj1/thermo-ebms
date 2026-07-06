@@ -7,17 +7,9 @@ from typing import Literal
 class MCMCConfig:
 	stepsize: float = 0.01
 	numsteps: int = 60
-
-
-@dataclass
-class OptConfig:
-	lr_init: float = 0.0001
-	lr_end: float = 0.00002
-	lr_decay: float = 0.998
-	beta1: float = 0.999
-	beta2: float = 0.9
-	begin: int = 0
-	step: int = 0
+	numleapfrog: int = 50
+	alpha: float = 0.01
+	beta: float = 0.0
 
 
 @dataclass

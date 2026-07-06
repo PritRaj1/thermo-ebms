@@ -1,8 +1,9 @@
 import os
-import matplotlib.pyplot as plt
 import jax
-import jax.numpy as jnp
+import blackjax
 from flax import nnx
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 
 from thermo_ebms import neuralEBM
 from utils import make_config
@@ -13,25 +14,28 @@ def run_chain(model, key):
 	model.eval()
 	z0, key = model.mcmc_init(key, 1)
 	key, runkey = jax.random.split(key)
+	kernel = blackjax.sghmc(
+		grad_estimator=model.ebm.prior_score,
+		num_integration_steps=model.prior_sampler.L,
+		alpha=model.prior_sampler.alpha,
+		beta=model.prior_sampler.beta,
+	)
+	state = kernel.init(z0)
 
 	def step(carry, _):
-		z, newkey = carry
+		st, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
-		eps = jax.random.normal(subkey, z.shape)
-		z += (
-			model.prior_sampler.eta * model.ebm.prior_score(z)
-			+ jnp.sqrt(2 * model.prior_sampler.eta) * eps
-		)
-		return (z, newkey), z
+		st = kernel.step(subkey, st, minibatch=None, step_size=model.prior_sampler.eta)
+		return (st, newkey), st
 
-	(_, _), z = jax.lax.scan(
+	(_, _), state = jax.lax.scan(
 		step,
-		(z0, runkey),
+		(state, runkey),
 		xs=None,
 		length=model.prior_sampler.run_iters,
 	)
 
-	return z
+	return state
 
 
 def test_mcmc_plot():

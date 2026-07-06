@@ -46,7 +46,9 @@ class EBM(nnx.Module):
 	def en(self, z: jax.Array) -> jax.Array:
 		return self(z).sum()
 
-	def prior_score(self, z: jax.Array) -> jax.Array:
+	def prior_score(
+		self, z: jax.Array, minibatch: jax.Array | None = None
+	) -> jax.Array:
 		"""∇_z log(p_α(z)) ∝ ∇_z f(z) - z / σ^2"""
 		grad_f = jax.grad(self.en)(z)
 		return grad_f - z / (self.sigma**2)
@@ -56,4 +58,4 @@ class EBM(nnx.Module):
 		if jnp.ndim(z_post) > jnp.ndim(z_prior):
 			z_post = z_post[-1]  # Final thermo samples = posterior
 
-		return -(self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]
+		return (self.en(z_post) - self.en(z_prior)) / z_prior.shape[0]

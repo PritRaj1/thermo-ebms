@@ -4,7 +4,6 @@ from flax import nnx
 
 from .base import neuralEBM
 from .kaem import KAEM
-from ..config import ModelConfig
 
 
 def build_pairs(T, offset):
@@ -73,16 +72,17 @@ class Thermo:
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
 		t = self.temps[:, None, None, None, None]
 
-		def wrapped_gradll(z: jax.Array) -> jax.Array:
-			return self.gen.llhood_score(z, x)
+		def score(z: jax.Array, minibatch: jax.Array | None = x) -> jax.Array:
 
-		def score(z: jax.Array) -> jax.Array:
-			return (t * jax.vmap(wrapped_gradll)(z)).sum() + self.ebm.prior_score(z)
+			def wrapped_gradll(z_t: jax.Array):
+				return self.gen.llhood_score(z_t, minibatch)
+
+			return (t * jax.vmap(wrapped_gradll)(z)) + self.ebm.prior_score(z)
 
 		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
 			return self.replica_xchange(key_i, z_i, idx, x)
 
-		return self.posterior_sampler(key, score, z0, xchange)
+		return self.posterior_sampler(key, score, z0, xchange_func=xchange, minibatch=x)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()

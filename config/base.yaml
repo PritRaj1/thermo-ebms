@@ -14,7 +14,10 @@ model:
     p0_stddev: 1.0
     mcmc:
       stepsize: 0.16
-      numsteps: 60
+      numsteps: 30
+      numleapfrog: 10
+      alpha: 0.01
+      beta: 0.0
 
   gen:
     gaussian_stddev: 0.3
@@ -23,7 +26,10 @@ model:
     batchnorm: False
     mcmc:
       stepsize: 0.01
-      numsteps: 20
+      numsteps: 10
+      numleapfrog: 10
+      alpha: 0.01
+      beta: 0.0
 
   kaem:
     mixture: true
