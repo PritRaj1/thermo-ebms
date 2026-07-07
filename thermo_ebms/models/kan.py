@@ -49,13 +49,13 @@ class kanBANK(nnx.Module):
 		outs = [layer(z[:, i : i + 1]) for i, layer in enumerate(self.layers)]
 
 		# Mixture -> in (B, Q, P) already
-		en = jnp.stack(outs, axis=-1)
+		outs = jnp.stack(outs, axis=-1)
 		if self.mixture:
-			return en
+			return outs
 
 		# univariate
 		q = jnp.arange(self.Q)
-		return en.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
+		return outs.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.freq == 0:

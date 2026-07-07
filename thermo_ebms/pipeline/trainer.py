@@ -48,23 +48,6 @@ def loss_fn(
 	return m.loss(x, z_post, z_prior)
 
 
-#
-# @nnx.jit
-# def update(
-# 	state: nnx.ModelAndOptimizer,
-# 	x: jax.Array,
-# 	z_post: jax.Array,
-# 	z_prior: jax.Array,
-# ) -> tuple[jax.Array, jax.Array]:
-#
-# 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
-# 	state.update(grads)
-# 	grads_flat = jnp.concatenate(
-# 		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
-# 	)
-# 	return loss, jnp.linalg.norm(grads_flat)
-
-
 @nnx.jit
 def update(
 	state: nnx.ModelAndOptimizer,
@@ -72,32 +55,12 @@ def update(
 	z_post: jax.Array,
 	z_prior: jax.Array,
 ) -> tuple[jax.Array, jax.Array]:
-
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
-	jax.debug.print("Loss: {}", loss)
-
-	def get_l1_norm(g_tree):
-		return jax.tree.reduce(lambda acc, g: acc + jnp.sum(jnp.abs(g)), g_tree, 0.0)
-
-	ebm_grads = jax.tree.map(lambda g: g, grads.get("ebm", {}))  # adjust path if needed
-	gen_grads = jax.tree.map(lambda g: g, grads.get("gen", {}))
-
-	ebm_norm = get_l1_norm(ebm_grads)
-	gen_norm = get_l1_norm(gen_grads)
-
-	jax.debug.print("EBM grad L1: {}", ebm_norm)
-	jax.debug.print("GEN grad L1: {}", gen_norm)
-	jax.debug.print(
-		"Total grad norm: {}",
-		jnp.linalg.norm(
-			jnp.concatenate([g.flatten() for g in jax.tree_util.tree_leaves(grads)])
-		),
-	)
-
 	state.update(grads)
-	return loss, jnp.linalg.norm(
-		jnp.concatenate([g.flatten() for g in jax.tree_util.tree_leaves(grads)])
+	grads_flat = jnp.concatenate(
+		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
 	)
+	return loss, jnp.linalg.norm(grads_flat)
 
 
 class ebmTrainer:

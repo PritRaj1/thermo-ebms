@@ -1,5 +1,5 @@
 model:
-  z_dim: 8
+  z_dim: 21
   seed: 0
   base: kaem
 
