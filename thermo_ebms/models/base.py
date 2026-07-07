@@ -40,3 +40,6 @@ class neuralEBM(nnx.Module):
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		return self._fwd(key, N)
+
+	def update_grid(self, z: jax.Array, train_idx: int) -> None:
+		pass

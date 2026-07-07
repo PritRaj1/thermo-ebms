@@ -136,15 +136,10 @@ class ebmTrainer:
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_post = self.st.model.sample_posterior(posterior_key, x)
 
-		if self.st.model.num_temps > 1:
-			self.st.model.adapt_temps(x, z_post)
-
-		if (self.st.model.base == "kaem") and hasattr(
-			self.st.model.kan.layers[0], "grid"
-		):
-			self.st.model.update_grid(z_post, train_idx)
-
+		self.st.model.adapt_temps(x, z_post)
+		self.st.model.update_grid(z_post, train_idx)
 		self.st.model.train()
+
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		return loss, grad_norm, key
 

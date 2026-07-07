@@ -25,6 +25,9 @@ class MLE:
 		recon = self.gen.loss(x, z_post) / num_samples
 		return contrastive_div + recon
 
+	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
+		pass
+
 
 class mleEBM(MLE, neuralEBM):
 	def __init__(self, config, rngs):

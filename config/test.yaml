@@ -41,10 +41,12 @@ model:
     numquad: 25
     numgrid: 10
     kan:
-      basis: chebyshev
-      chebyshev:
-        D: 3
-        flavor: exact
+      basis: rbf
+      rbf:
+        D: 10
+        add_bias: True
+        external_weights: True
+        kernel: {"type": "gaussian"}
       grid_updating:
         numgrid: 10
         update_frequency: 2

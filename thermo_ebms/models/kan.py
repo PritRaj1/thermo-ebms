@@ -12,16 +12,6 @@ BASES = {
 	"fourier": layers.FourierLayer,
 }
 
-init_scheme = {
-	"type": "power",
-	"const_b": 1.0,
-	"const_r": 1.0,
-	"pow_b1": 1.75,
-	"pow_b2": 1.75,
-	"pow_r1": 0.25,
-	"pow_r2": 0.25,
-}
-
 
 class kanBANK(nnx.Module):
 	"""KAN module with no inner sum"""
@@ -48,7 +38,6 @@ class kanBANK(nnx.Module):
 					n_in=1,
 					n_out=self.Q,
 					seed=seed0 + k,
-					init_scheme=init_scheme,
 					**params,
 				)
 				for k in range(P)
