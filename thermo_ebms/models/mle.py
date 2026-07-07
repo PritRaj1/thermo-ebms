@@ -10,8 +10,8 @@ class MLE:
 	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		z0, key = self.mcmc_init(key, x.shape[0])
 
-		def score(z: jax.Array, minibatch: jax.Array | None = x) -> jax.Array:
-			return self.gen.llhood_score(z, minibatch) + self.ebm.prior_score(z)
+		def score(z: jax.Array) -> jax.Array:
+			return self.gen.llhood_score(z, x) + self.ebm.prior_score(z)
 
 		return self.posterior_sampler(key, score, z0, minibatch=x)
 

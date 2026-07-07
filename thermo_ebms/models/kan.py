@@ -12,6 +12,16 @@ BASES = {
 	"fourier": layers.FourierLayer,
 }
 
+init_scheme = {
+	"type": "power",
+	"const_b": 1.0,
+	"const_r": 1.0,
+	"pow_b1": 1.75,
+	"pow_b2": 1.75,
+	"pow_r1": 0.25,
+	"pow_r2": 0.25,
+}
+
 
 class kanBANK(nnx.Module):
 	"""KAN module with no inner sum"""
@@ -33,7 +43,16 @@ class kanBANK(nnx.Module):
 		kan = BASES[config.basis]
 		params = dict(basis_cfg)
 		self.layers = nnx.List(
-			[kan(n_in=1, n_out=self.Q, seed=seed0 + k, **params) for k in range(P)]
+			[
+				kan(
+					n_in=1,
+					n_out=self.Q,
+					seed=seed0 + k,
+					init_scheme=init_scheme,
+					**params,
+				)
+				for k in range(P)
+			]
 		)
 
 		self.numgrid = config.grid_updating.numgrid
@@ -44,9 +63,9 @@ class kanBANK(nnx.Module):
 
 	def __call__(self, z: jax.Array) -> jax.Array:
 		batch = z.shape[0]
-		z = jnp.reshape(z, (-1, self.P))
+		z = jnp.reshape(z, (-1, self.P, 1))
 
-		outs = [layer(z[:, i : i + 1]) for i, layer in enumerate(self.layers)]
+		outs = [layer(z[:, i, :]) for i, layer in enumerate(self.layers)]
 
 		# Mixture -> in (B, Q, P) already
 		outs = jnp.stack(outs, axis=-1)
@@ -59,9 +78,9 @@ class kanBANK(nnx.Module):
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.freq == 0:
-			z = jnp.reshape(z, (-1, self.P))
+			z = jnp.reshape(z, (-1, self.P, 1))
 			for i in range(len(self.layers)):
-				self.layers[i].update_grid(z[:, i : i + 1], self.numgrid)
+				self.layers[i].update_grid(z[:, i, :], self.numgrid)
 
 			if train_idx > 1:
 				self.freq[...] = jnp.floor(self.freq[...] * (2 - self.decay))  # Decay

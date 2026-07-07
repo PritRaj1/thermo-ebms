@@ -7,9 +7,6 @@ from typing import Literal
 class MCMCConfig:
 	stepsize: float = 0.01
 	numsteps: int = 60
-	numleapfrog: int = 50
-	alpha: float = 0.01
-	beta: float = 0.0
 
 
 @dataclass

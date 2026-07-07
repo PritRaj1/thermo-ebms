@@ -71,12 +71,10 @@ class Thermo:
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
 		t = self.temps[:, None, None, None, None]
 
-		def score(z: jax.Array, minibatch: jax.Array | None = x) -> jax.Array:
+		def score(z: jax.Array) -> jax.Array:
 
 			def wrapped_score(z_t: jax.Array, t_k: jax.Array):
-				return t_k * self.gen.llhood_score(
-					z_t, minibatch
-				) + self.ebm.prior_score(z_t)
+				return t_k * self.gen.llhood_score(z_t, x) + self.ebm.prior_score(z_t)
 
 			return jax.vmap(wrapped_score, in_axes=(0, 0))(z, t).sum()
 

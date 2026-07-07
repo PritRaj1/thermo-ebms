@@ -1,6 +1,5 @@
 import os
 import jax
-import blackjax
 from flax import nnx
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -14,28 +13,25 @@ def run_chain(model, key):
 	model.eval()
 	z0, key = model.mcmc_init(key, 1)
 	key, runkey = jax.random.split(key)
-	kernel = blackjax.sghmc(
-		grad_estimator=model.ebm.prior_score,
-		num_integration_steps=model.prior_sampler.L,
-		alpha=model.prior_sampler.alpha,
-		beta=model.prior_sampler.beta,
-	)
-	state = kernel.init(z0)
 
 	def step(carry, _):
-		st, newkey = carry
+		z, newkey = carry
 		newkey, subkey = jax.random.split(newkey)
-		st = kernel.step(subkey, st, minibatch=None, step_size=model.prior_sampler.eta)
-		return (st, newkey), st
+		eps = jax.random.normal(subkey, z.shape)
+		z += (
+			model.prior_sampler.eta * model.ebm.prior_score(z)
+			+ jnp.sqrt(2 * model.prior_sampler.eta) * eps
+		)
+		return (z, newkey), z
 
-	(_, _), state = jax.lax.scan(
+	(_, _), z = jax.lax.scan(
 		step,
-		(state, runkey),
+		(z0, runkey),
 		xs=None,
 		length=model.prior_sampler.run_iters,
 	)
 
-	return state
+	return z
 
 
 def test_mcmc_plot():
