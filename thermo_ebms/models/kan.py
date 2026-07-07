@@ -46,9 +46,7 @@ class kanBANK(nnx.Module):
 		batch = z.shape[0]
 		z = jnp.reshape(z, (-1, self.P))
 
-		outs = []
-		for i, layer in enumerate(self.layers):
-			outs.append(layer(z[:, i : i + 1]))
+		outs = [layer(z[:, i : i + 1]) for i, layer in enumerate(self.layers)]
 
 		# Mixture -> in (B, Q, P) already
 		en = jnp.stack(outs, axis=-1)

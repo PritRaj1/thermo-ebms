@@ -43,14 +43,14 @@ model:
 
 
   kaem:
-    mixture: True
+    mixture: False
     numquad: 25
     numgrid: 10
     kan:
-      basis: spline
-      spline:
-        k: 3
-        G: 10
+      basis: chebyshev
+      chebyshev:
+        D: 3
+        flavor: exact
       grid_updating:
         numgrid: 10
         update_frequency: 2

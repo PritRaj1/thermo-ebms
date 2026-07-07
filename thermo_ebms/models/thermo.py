@@ -15,10 +15,9 @@ class Thermo:
 	@nnx.jit
 	def _adapt_temps(self, x: jax.Array, z: jax.Array) -> jax.Array:
 		"""
-		        Adapt temps by minimising/equalizing KL div between adjacent power posteriors
+		Adapt temps by minimising/equalizing KL div between adjacent power posteriors
+		Min KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
 		Called outside JIT
-
-		        KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
 		"""
 
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
@@ -74,10 +73,12 @@ class Thermo:
 
 		def score(z: jax.Array, minibatch: jax.Array | None = x) -> jax.Array:
 
-			def wrapped_gradll(z_t: jax.Array):
-				return self.gen.llhood_score(z_t, minibatch)
+			def wrapped_score(z_t: jax.Array, t_k: jax.Array):
+				return t_k * self.gen.llhood_score(
+					z_t, minibatch
+				) + self.ebm.prior_score(z_t)
 
-			return (t * jax.vmap(wrapped_gradll)(z)) + self.ebm.prior_score(z)
+			return jax.vmap(wrapped_score, in_axes=(0, 0))(z, t).sum()
 
 		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
 			return self.replica_xchange(key_i, z_i, idx, x)
@@ -86,22 +87,7 @@ class Thermo:
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()
-
-		# Expand chosen mixture component to all temps
-		mixture_component = None
-		if self.base == "kaem":
-			mixture_component = self.component[...]
-			self.component.set_value(
-				jnp.repeat(mixture_component, self.num_temps, axis=0)
-			)
-
-		z = self._sample_posterior(key, x)
-
-		# Contract back
-		if self.base == "kaem":
-			self.component.set_value(mixture_component)
-
-		return z
+		return self._sample_posterior(key, x)
 
 	def loss(self, x: jax.Array, z_thermo: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""
