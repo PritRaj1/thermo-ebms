@@ -192,8 +192,6 @@ class ebmTrainer:
 					"samples",
 					shape=(self.final_samples, *x.shape[1:]),
 					dtype=np.uint8,
-					compression="gzip",
-					compression_opts=4,
 				)
 				f.attrs["num_samples"] = self.final_samples
 				f.attrs["shape"] = x.shape

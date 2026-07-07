@@ -8,22 +8,22 @@ model:
   seed: 0
 
   ebm:
-    layer_widths: [200, 200, 1]
+    layer_widths: [200, 200, 200]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     cd_weight: 0.2
     mcmc:
       stepsize: 0.16
-      numsteps: 30
+      numsteps: 60
 
   gen:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.2
     img_channels: 3
-    batchnorm: False
+    batchnorm: True
     mcmc:
       stepsize: 0.01
-      numsteps: 10
+      numsteps: 40
 
   kaem:
     mixture: true

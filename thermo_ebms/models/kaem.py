@@ -65,8 +65,7 @@ class KAEM(neuralEBM):
 		return jnp.take_along_axis(self.kan(z), self.component[...], axis=1).sum()
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		if hasattr(self.kan.layers[0], "grid"):
-			self.kan.update_grid(z, train_idx)
+		self.kan.update_grid(z, train_idx)
 
 	def init_gauss(self) -> None:
 		"""Adapt Gauss-Legendre integration domain"""

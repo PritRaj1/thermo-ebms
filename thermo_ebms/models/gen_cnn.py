@@ -71,7 +71,7 @@ class GEN(nnx.Module):
 		self.g = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
-		z = z.sum(axis=2, keepdims=True)
+		z = z.sum(axis=-2, keepdims=True)
 		z = z.astype(self.half_prec)
 		return self.g(z).astype(self.full_prec)
 
