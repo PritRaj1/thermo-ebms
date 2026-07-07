@@ -33,7 +33,7 @@ class KAEM(neuralEBM):
 		self.base = "kaem"
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.ebm.f = kanBANK(
+		self.kan = kanBANK(
 			config.kaem.kan, config.kaem.mixture, self.z_dim, config.seed
 		)
 		self.ebm.en = self.energy
@@ -53,20 +53,26 @@ class KAEM(neuralEBM):
 		self.init_gauss()
 
 		# Mixture component to sample
-		self.component = nnx.Variable(jnp.arange(self.ebm.f.Q)[None, :, None])
+		self.component = nnx.Variable(jnp.arange(self.kan.Q)[None, :, None])
 
-	def energy(self, z: jax.Array) -> jax.Array():
-		return jnp.take_along_axis(self.ebm.f(z), self.component, axis=1).sum()
+	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
+		key, subkey = jax.random.split(key)
+		inner_dim = 1 if self.kan.mixture else self.kan.Q
+		z0 = jax.random.normal(subkey, (N, 1, inner_dim, self.z_dim)) * self.ebm.sigma
+		return z0, key
+
+	def energy(self, z: jax.Array) -> jax.Array:
+		return jnp.take_along_axis(self.kan(z), self.component[...], axis=1).sum()
 
 	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		self.ebm.f.update_grid(z, train_idx)
+		self.kan.update_grid(z, train_idx)
 
 	def init_gauss(self) -> None:
 		"""Adapt Gauss-Legendre integration domain"""
-		if hasattr(self.ebm.f.layers[0], "grid"):
+		if hasattr(self.kan.layers[0], "grid"):
 			nodes, weights = [], []
 
-			for layer in self.ebm.f.layers:
+			for layer in self.kan.layers:
 				n, w = get_gauss(layer, self.z_dim, self.numquad)
 				nodes.append(n)
 				weights.append(w)
@@ -81,14 +87,14 @@ class KAEM(neuralEBM):
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
 		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
-		if self.ebm.f.mixture:
+		if self.kan.mixture:
 			key, subkey = jax.random.split(key)
 			self.component.set_value(
 				jax.random.randint(
 					subkey,
 					shape=(N, 1, self.z_dim),
 					minval=0,
-					maxval=self.ebm.f.Q,
+					maxval=self.kan.Q,
 				)
 			)
 
@@ -119,11 +125,11 @@ class KAEM(neuralEBM):
 	@nnx.jit(static_argnames=("N",))
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
-		inner_dim = 1 if self.ebm.f.mixture else self.ebm.f.Q
+		inner_dim = 1 if self.kan.mixture else self.kan.Q
 
 		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q
 		f = jnp.take_along_axis(
-			self.ebm(nodes)[None, :, :, :],  # Unsqueeze num_samples
+			self.kan(nodes)[None, :, :, :],  # Unsqueeze num_samples
 			self.component[:, None, :, :],  # Unsqueeze N_quad
 			axis=2,
 		)
@@ -138,11 +144,11 @@ class KAEM(neuralEBM):
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=1)
 		cdf /= cdf[:, -1:, :, :] + 1e-12  # Normalize
+		if not self.kan.mixture:
+			cdf = jnp.broadcast_to(cdf, (N, *cdf.shape[1:]))
 
 		z = self.invert_cdf(u, cdf.transpose(0, 2, 3, 1))
-
-		q = jnp.arange(inner_dim)
-		return z[:, None, q, :]
+		return z[:, None, :, :]
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()

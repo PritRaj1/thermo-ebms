@@ -10,7 +10,6 @@ from ..config import ModelConfig
 class neuralEBM(nnx.Module):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
-		self.cd_weight = config.cd_weight
 		self.prior_sampler = mcmc_sampler(config.ebm.mcmc)
 		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)

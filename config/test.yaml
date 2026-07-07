@@ -1,6 +1,5 @@
 model:
   z_dim: 8
-  cd_weight: 0.2
   seed: 0
   base: kaem
 
@@ -8,6 +7,7 @@ model:
     layer_widths: [100, 100, 1]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
+    cd_weight: 0.2
     mcmc:
       stepsize: 0.01
       numsteps: 5
@@ -43,7 +43,7 @@ model:
 
 
   kaem:
-    mixture: true
+    mixture: True
     numquad: 25
     numgrid: 10
     kan:

@@ -42,6 +42,29 @@ def adam(config: OptConfig, updates_per_epoch: int) -> Callable:
 	return optax.adam(schedule, config.beta1, config.beta2)
 
 
+def loss_fn(
+	m: nnx.Module, x: jax.Array, z_post: jax.Array, z_prior: jax.Array
+) -> jax.Array:
+	return m.loss(x, z_post, z_prior)
+
+
+#
+# @nnx.jit
+# def update(
+# 	state: nnx.ModelAndOptimizer,
+# 	x: jax.Array,
+# 	z_post: jax.Array,
+# 	z_prior: jax.Array,
+# ) -> tuple[jax.Array, jax.Array]:
+#
+# 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
+# 	state.update(grads)
+# 	grads_flat = jnp.concatenate(
+# 		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
+# 	)
+# 	return loss, jnp.linalg.norm(grads_flat)
+
+
 @nnx.jit
 def update(
 	state: nnx.ModelAndOptimizer,
@@ -50,17 +73,31 @@ def update(
 	z_prior: jax.Array,
 ) -> tuple[jax.Array, jax.Array]:
 
-	def loss_fn(m):
-		contrastive_div = m.cd_weight * m.ebm.loss(z_post, z_prior)
-		recon = m.loss(x, z_post, z_prior)
-		return contrastive_div + recon
+	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
+	jax.debug.print("Loss: {}", loss)
 
-	loss, grads = nnx.value_and_grad(loss_fn)(state.model)
-	state.update(grads)
-	grads_flat = jnp.concatenate(
-		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
+	def get_l1_norm(g_tree):
+		return jax.tree.reduce(lambda acc, g: acc + jnp.sum(jnp.abs(g)), g_tree, 0.0)
+
+	ebm_grads = jax.tree.map(lambda g: g, grads.get("ebm", {}))  # adjust path if needed
+	gen_grads = jax.tree.map(lambda g: g, grads.get("gen", {}))
+
+	ebm_norm = get_l1_norm(ebm_grads)
+	gen_norm = get_l1_norm(gen_grads)
+
+	jax.debug.print("EBM grad L1: {}", ebm_norm)
+	jax.debug.print("GEN grad L1: {}", gen_norm)
+	jax.debug.print(
+		"Total grad norm: {}",
+		jnp.linalg.norm(
+			jnp.concatenate([g.flatten() for g in jax.tree_util.tree_leaves(grads)])
+		),
 	)
-	return loss, jnp.linalg.norm(grads_flat)
+
+	state.update(grads)
+	return loss, jnp.linalg.norm(
+		jnp.concatenate([g.flatten() for g in jax.tree_util.tree_leaves(grads)])
+	)
 
 
 class ebmTrainer:
@@ -140,7 +177,7 @@ class ebmTrainer:
 			self.st.model.adapt_temps(x, z_post)
 
 		if (self.st.model.base == "kaem") and hasattr(
-			self.st.model.ebm.f.layers[0], "grid"
+			self.st.model.kan.layers[0], "grid"
 		):
 			self.st.model.update_grid(z_post, train_idx)
 

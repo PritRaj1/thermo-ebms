@@ -103,24 +103,27 @@ class Thermo:
 
 		return z
 
-	def loss(self, x: jax.Array, z: jax.Array, _: jax.Array) -> jax.Array:
+	def loss(self, x: jax.Array, z_thermo: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""
 		Thermodynamic integration with trapezoidal rule
 
 		1/2 * Σ [ ΔT (E_{z|x,t_i}[ log p_β(x | z) ] + E_{z|x,t_{i-1}}[ log p_β(x | z) ] )
 		"""
+		num_samples = x.shape[0]
+		z_post = jnp.take(z_thermo, -1, axis=0)  # Final thermo samples = posterior
+		contrastive_div = self.ebm.loss(z_post, z_prior) / num_samples
 
 		# Flatten -> unflatten (vmap breaks batchstat mutation in jit)
-		x_gen = self.gen(z.reshape(x.shape[0] * self.num_temps, *z.shape[2:])).reshape(
-			self.num_temps, x.shape[0], *x.shape[1:]
-		)
-		expectations = -(
-			((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)).mean(axis=1)
-		)
+		x_gen = self.gen(
+			z_thermo.reshape(x.shape[0] * self.num_temps, *z_thermo.shape[2:])
+		).reshape(self.num_temps, x.shape[0], *x.shape[1:])
+		expectations = (
+			-(((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)))
+		).mean(axis=1)
 
 		delta_t = self.temps[1:] - self.temps[:-1]
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
-		return -0.5 * trapz.sum()
+		return -0.5 * trapz.sum() + contrastive_div
 
 
 class thermoEBM(Thermo, neuralEBM):
