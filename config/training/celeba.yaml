@@ -6,19 +6,19 @@ image_res: 64
 model_overrides:
   gen:
     blocks:
-      - channels: 512
+      - channels: 256
         kernel_size: 4
         stride: 1
         padding: VALID
-      - channels: 256
-        kernel_size: 4
-        stride: 2
-        padding: SAME
       - channels: 128
         kernel_size: 4
         stride: 2
         padding: SAME
       - channels: 64
+        kernel_size: 4
+        stride: 2
+        padding: SAME
+      - channels: 32
         kernel_size: 4
         stride: 2
         padding: SAME

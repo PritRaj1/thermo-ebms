@@ -22,7 +22,7 @@ model:
     groupnorm: False
     mcmc:
       stepsize: 0.01
-      numsteps: 40
+      numsteps: 20
 
   kaem:
     mixture: true

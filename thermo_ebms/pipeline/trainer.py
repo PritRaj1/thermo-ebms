@@ -38,13 +38,10 @@ def update(
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
-) -> tuple[jax.Array, jax.Array]:
+) -> jax.Array:
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
 	state.update(grads)
-	grads_flat = jnp.concatenate(
-		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
-	)
-	return loss, jnp.linalg.norm(grads_flat)
+	return loss
 
 
 class ebmTrainer:
@@ -124,15 +121,15 @@ class ebmTrainer:
 		self.st.model.update_grid(z_post, train_idx)
 		self.st.model.train()
 
-		loss, grad_norm = update(self.st, x, z_post, z_prior)
-		return loss, grad_norm, key
+		loss = update(self.st, x, z_post, z_prior)
+		return loss, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, grad_norm, key = self.train_step(x, train_idx, subkey)
+			loss, key = self.train_step(x, train_idx, subkey)
 			self.profiler(train_idx)
 
 			train_idx += 1
@@ -140,7 +137,6 @@ class ebmTrainer:
 
 			if self.is_host0:
 				self.writer.write_scalars(train_idx, {"batch_loss": loss_val})
-				self.writer.write_scalars(train_idx, {"grad_norm": grad_norm})
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:

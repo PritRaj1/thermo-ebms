@@ -1,7 +1,7 @@
 model:
   z_dim: 21
   seed: 0
-  base: neural
+  base: kaem
 
   ebm:
     layer_widths: [100, 100]
