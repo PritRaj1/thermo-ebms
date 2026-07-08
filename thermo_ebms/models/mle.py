@@ -13,7 +13,7 @@ class MLE:
 		def score(z: jax.Array) -> jax.Array:
 			return self.gen.llhood_score(z, x) + self.ebm.prior_score(z)
 
-		return self.posterior_sampler(key, score, z0, minibatch=x)
+		return self.posterior_sampler(key, score, z0)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()

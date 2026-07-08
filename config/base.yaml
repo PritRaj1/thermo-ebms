@@ -9,25 +9,24 @@ model:
 
   ebm:
     layer_widths: [200, 200]
-    leakyrelu_leak: 0.1
+    leakyrelu_leak: 0.2
     p0_stddev: 1.0
-    cd_weight: 0.2
     mcmc:
       stepsize: 0.16
       numsteps: 60
 
   gen:
     gaussian_stddev: 0.3
-    leakyrelu_leak: 0.2
+    leakyrelu_leak: 0.01
     img_channels: 3
-    batchnorm: True
+    batchnorm: False
     mcmc:
       stepsize: 0.01
       numsteps: 40
 
   kaem:
     mixture: true
-    numquad: 100
+    numquad: 25
     numgrid: 10
     kan:
       basis: spline
@@ -40,13 +39,31 @@ model:
         frequency_decay: 0.998
 
 optim:
-  lr_init: 0.0001
-  lr_end: 0.0001
-  lr_decay: 1.0
-  beta1: 0.999
-  beta2: 0.5
-  decay_step: 0
-  decay_begin: 0
+  gen:
+    lr_init: 1e-4
+    lr_end: 5e-5
+    lr_decay: 0.998
+    beta1: 0.999
+    beta2: 0.5
+    decay_begin: 0
+    decay_step: 0
+  ebm:
+    lr_init: 2e-5
+    lr_end: 1e-5
+    lr_decay: 0.998
+    beta1: 0.999
+    beta2: 0.5
+    decay_begin: 0
+    decay_step: 0
+  kaem:
+    lr_init: 2e-5
+    lr_end: 1e-5
+    lr_decay: 0.998
+    beta1: 0.999
+    beta2: 0.5
+    decay_begin: 0
+    decay_step: 0
+
 
 run_name: ${model.base}_${training.dataset}
 
@@ -56,10 +73,6 @@ logging:
   ckpt_every: 20
   sample_every: 10
   num_samples: 10
-
-lr_schedule:
-  epoch_begin: 0
-  epoch_step: 0
 
 unbiased_metrics:
   batch_size_to_generate: 50

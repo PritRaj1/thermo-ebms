@@ -17,7 +17,6 @@ class EBM(nnx.Module):
 	):
 		dims = ebm_config.layer_widths
 		self.sigma = ebm_config.p0_stddev
-		self.cd_weight = ebm_config.cd_weight
 
 		def act(x: jax.Array) -> jax.Array:
 			return nnx.leaky_relu(x, negative_slope=ebm_config.leakyrelu_leak)
@@ -58,4 +57,4 @@ class EBM(nnx.Module):
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
-		return (self.en(z_post) - self.en(z_prior)) * self.cd_weight
+		return self.en(z_post) - self.en(z_prior)

@@ -22,7 +22,6 @@ class mcmc_sampler(nnx.Module):
 		score: ScoreFn,
 		z0: jax.Array,
 		xchange_func: XchangeFn | None = None,
-		minibatch: jax.Array | None = None,
 	):
 		xchange_bool = (self.xchange_every > 0) and (xchange_func is not None)
 		key, runkey = jax.random.split(key)

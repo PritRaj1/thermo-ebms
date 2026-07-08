@@ -4,7 +4,13 @@ from .kan import KANConfig
 from .networks import MCMCConfig, ConvBlock, EBMConfig, GENConfig
 from .types import ScoreFn, XchangeFn
 from .model import ThermoConfig, KAEMConfig, ModelConfig
-from .pipeline import TrainingConfig, LoggingConfig, MetricsConfig, OptConfig
+from .pipeline import (
+	TrainingConfig,
+	LoggingConfig,
+	MetricsConfig,
+	AdamConfig,
+	OptConfig,
+)
 
 
 @dataclass
@@ -21,6 +27,7 @@ __all__ = [
 	"EBMConfig",
 	"GENConfig",
 	"MCMCConfig",
+	"AdamConfig",
 	"OptConfig",
 	"ConvBlock",
 	"ThermoConfig",

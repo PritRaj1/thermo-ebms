@@ -81,7 +81,7 @@ class Thermo:
 		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
 			return self.replica_xchange(key_i, z_i, idx, x)
 
-		return self.posterior_sampler(key, score, z0, xchange_func=xchange, minibatch=x)
+		return self.posterior_sampler(key, score, z0, xchange_func=xchange)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()

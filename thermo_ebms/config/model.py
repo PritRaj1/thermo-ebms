@@ -24,7 +24,6 @@ class ThermoConfig:
 class ModelConfig:
 	seed: int = 0
 	z_dim: int = 100
-	cd_weight: float = 0.2
 	base: Literal["neural", "kaem"] = "kaem"
 	ebm: EBMConfig = field(default_factory=EBMConfig)
 	gen: GENConfig = field(default_factory=GENConfig)

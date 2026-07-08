@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Sequence
 
 
@@ -38,7 +38,7 @@ class MetricsConfig:
 
 
 @dataclass
-class OptConfig:
+class AdamConfig:
 	lr_init: float = 0.0001
 	lr_end: float = 0.00002
 	lr_decay: float = 0.998
@@ -46,3 +46,10 @@ class OptConfig:
 	beta2: float = 0.9
 	decay_begin: int = 0
 	decay_step: int = 0
+
+
+@dataclass
+class OptConfig:
+	ebm: AdamConfig = field(default_factory=AdamConfig)
+	gen: AdamConfig = field(default_factory=AdamConfig)
+	kan: AdamConfig = field(default_factory=AdamConfig)
