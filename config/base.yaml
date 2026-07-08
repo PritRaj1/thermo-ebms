@@ -19,7 +19,7 @@ model:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.01
     img_channels: 3
-    batchnorm: False
+    groupnorm: False
     mcmc:
       stepsize: 0.01
       numsteps: 40

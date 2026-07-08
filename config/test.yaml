@@ -15,7 +15,7 @@ model:
   gen:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.1
-    batchnorm: False
+    groupnorm: False
     blocks:
       - channels: 16
         kernel_size: 4

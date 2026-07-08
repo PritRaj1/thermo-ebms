@@ -30,7 +30,7 @@ class GENConfig:
 	img_channels: int = 3
 	gaussian_stddev: float = 0.3
 	leakyrelu_leak: float = 0.2
-	batchnorm: bool = False
+	groupnorm: bool = False
 	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
 	blocks: Sequence[ConvBlock] = field(
 		default_factory=lambda: [
