@@ -4,7 +4,7 @@ model:
   base: kaem
 
   ebm:
-    layer_widths: [100, 100, 1]
+    layer_widths: [100, 100]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     cd_weight: 0.2

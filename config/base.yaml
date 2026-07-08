@@ -8,7 +8,7 @@ model:
   seed: 0
 
   ebm:
-    layer_widths: [200, 200, 200]
+    layer_widths: [200, 200]
     leakyrelu_leak: 0.1
     p0_stddev: 1.0
     cd_weight: 0.2

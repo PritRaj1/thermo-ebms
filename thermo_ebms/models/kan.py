@@ -6,6 +6,7 @@ from jaxkan.models.KAN import KAN
 from ..config import KANConfig
 
 
+# TODO: jaxkan not initialising, need to implement
 class kanBANK(nnx.Module):
 	"""KAN module with no inner sum"""
 

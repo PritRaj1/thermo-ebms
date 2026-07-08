@@ -24,19 +24,23 @@ class EBM(nnx.Module):
 
 		layers = []
 		for width in dims:
-			layers.extend(
-				[
-					nnx.Linear(
-						z_dim,
-						width,
-						rngs=rngs,
-						param_dtype=self.full_prec,
-						dtype=self.half_prec,
-					),
-					act,
-				]
-			)
+			layers += [
+				nnx.Linear(
+					z_dim,
+					width,
+					rngs=rngs,
+					param_dtype=self.full_prec,
+					dtype=self.half_prec,
+				),
+				act,
+			]
 			z_dim = width
+
+		layers += [
+			nnx.Linear(
+				z_dim, 1, rngs=rngs, param_dtype=self.full_prec, dtype=self.half_prec
+			)
+		]
 
 		self.f = nnx.Sequential(*layers)
 
