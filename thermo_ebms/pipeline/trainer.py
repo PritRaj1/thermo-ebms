@@ -4,7 +4,6 @@ import jax
 import os
 import numpy as np
 from flax import nnx
-import jax.numpy as jnp
 from pathlib import Path
 import orbax.checkpoint as ocp
 from clu import metric_writers
@@ -117,11 +116,11 @@ class ebmTrainer:
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_post = self.st.model.sample_posterior(posterior_key, x)
 
+		self.st.model.train()
+		loss = update(self.st, x, z_post, z_prior)
+
 		self.st.model.adapt_temps(x, z_post)
 		self.st.model.update_grid(z_post, train_idx)
-		self.st.model.train()
-
-		loss = update(self.st, x, z_post, z_prior)
 		return loss, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:

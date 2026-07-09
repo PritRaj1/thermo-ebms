@@ -12,6 +12,14 @@ def build_pairs(T, offset):
 
 
 class Thermo:
+	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
+		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""
+		x_gen = self.gen(
+			z_t.reshape(x.shape[0] * self.num_temps, *z_t.shape[2:])
+		).reshape(self.num_temps, x.shape[0], *x.shape[1:])
+
+		return -((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4))
+
 	@nnx.jit
 	def _adapt_temps(self, x: jax.Array, z: jax.Array) -> jax.Array:
 		"""
@@ -19,14 +27,10 @@ class Thermo:
 		Min KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
 		Called outside JIT
 		"""
-
-		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return -jnp.sum((x - self.gen(z_t)) ** 2, axis=(1, 2, 3))
-
-		ll = jax.vmap(wrapped_ll)(z)
+		ll = self.thermo_ll(x, z) / (2 * self.gen.sigma**2)
 		rho = ll.std(axis=1)
 		cdf = jnp.cumsum(rho)
-		cdf = cdf / cdf[-1]
+		cdf = cdf / cdf[-1] + 1e-12
 		return jnp.interp(
 			jnp.linspace(0, 1, self.num_temps),
 			cdf,
@@ -45,7 +49,7 @@ class Thermo:
 		x: jax.Array,
 	) -> jax.Array:
 		def wrapped_ll(z_t: jax.Array) -> jax.Array:
-			return -self.gen.loss(x, z_t)
+			return -self.gen.loss(x, z_t) / (2 * self.gen.sigma**2)
 
 		ll = jax.vmap(wrapped_ll)(z)
 		phase = step_idx % 2
@@ -67,21 +71,20 @@ class Thermo:
 
 	@nnx.jit
 	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
+
+		def thermo_score(z: jax.Array) -> jax.Array:
+
+			def score(z_t: jax.Array, t_k: jax.Array) -> jax.Array:
+				return self.gen.llhood_score(z_t, x, t=t_k) + self.ebm.prior_score(z_t)
+
+			return jax.vmap(score, in_axes=(0, 0))(z, self.temps)
+
+		def xchange(key_i: jax.Array, z: jax.Array, idx: jax.Array) -> jax.Array:
+			return self.replica_xchange(key_i, z, idx, x)
+
 		z0, key = self.mcmc_init(key, x.shape[0] * self.num_temps)
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
-		t = self.temps[:, None, None, None, None]
-
-		def score(z: jax.Array) -> jax.Array:
-
-			def wrapped_score(z_t: jax.Array, t_k: jax.Array):
-				return t_k * self.gen.llhood_score(z_t, x) + self.ebm.prior_score(z_t)
-
-			return jax.vmap(wrapped_score, in_axes=(0, 0))(z, t).sum()
-
-		def xchange(key_i: jax.Array, z_i: jax.Array, idx: jax.Array) -> jax.Array:
-			return self.replica_xchange(key_i, z_i, idx, x)
-
-		return self.posterior_sampler(key, score, z0, xchange_func=xchange)
+		return self.posterior_sampler(key, thermo_score, z0, xchange_func=xchange)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()
@@ -97,14 +100,7 @@ class Thermo:
 		z_post = jnp.take(z_thermo, -1, axis=0)  # Final thermo samples = posterior
 		contrastive_div = self.ebm.loss(z_post, z_prior) / num_samples
 
-		# Flatten -> unflatten (vmap breaks batchstat mutation in jit)
-		x_gen = self.gen(
-			z_thermo.reshape(x.shape[0] * self.num_temps, *z_thermo.shape[2:])
-		).reshape(self.num_temps, x.shape[0], *x.shape[1:])
-		expectations = (
-			-(((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)))
-		).mean(axis=1)
-
+		expectations = self.thermo_ll(x, z_thermo).mean(axis=1)
 		delta_t = self.temps[1:] - self.temps[:-1]
 		trapz = delta_t * (expectations[1:] + expectations[:-1])
 		return -0.5 * trapz.sum() + contrastive_div
