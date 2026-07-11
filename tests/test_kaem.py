@@ -13,7 +13,7 @@ def test_sample_prior_shape():
 	model = KAEM(config.model, rngs=nnx.Rngs(key))
 
 	N = 10
-	key = model.sample_mixture(key, N)
+	key = model.kan.sample_mixture(key, N)
 	z = model.sample_prior(key, N)
 
 	inner_dim = 1 if config.model.kaem.mixture else model.kan.Q

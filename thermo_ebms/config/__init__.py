@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-from .kan import KANConfig
 from .networks import MCMCConfig, ConvBlock, EBMConfig, GENConfig
 from .types import ScoreFn, XchangeFn
 from .model import ThermoConfig, KAEMConfig, ModelConfig
@@ -23,7 +22,6 @@ class Config:
 
 
 __all__ = [
-	"KANConfig",
 	"EBMConfig",
 	"GENConfig",
 	"MCMCConfig",

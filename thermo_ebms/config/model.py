@@ -2,16 +2,14 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from .networks import EBMConfig, GENConfig
-from .kan import KANConfig
 
 
 @dataclass
 class KAEMConfig:
-	kan: KANConfig = field(default_factory=KANConfig)
 	mixture: bool = True
 	numquad: int = 25
 	numgrid: int = 10
-	update_grid_frequency: int = 5
+	numcentres: int = 10
 
 
 @dataclass

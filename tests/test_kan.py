@@ -1,27 +1,44 @@
 import jax
+from flax import nnx
 import jax.numpy as jnp
 
-from thermo_ebms.models import kanBANK
+from thermo_ebms.models import rbfKAN
 from utils import make_config
 
 config = make_config()
 P = config.model.z_dim
-mixture = config.model.kaem.mixture
-Q = (P - 1) // 2 if mixture else 2 * P + 1
 
 
 def test_shape():
-	model = kanBANK(config.model.kaem.kan, mixture, P, 0)
+	key = jax.random.key(0)
+	config.model.kaem.mixture = False
+	model = rbfKAN(config.model.kaem, P, rngs=nnx.Rngs(key))
 
-	x = jnp.ones((10, P)) if mixture else jnp.ones((10, Q, P))
+	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
+	x = jnp.ones((10, 1, Q, P))
 	y = model(x)
 
-	assert y.shape == (10, Q, P)
+	assert y.shape == (10, 1, Q, P)
+
+
+def test_shape_mixture():
+	key = jax.random.key(0)
+	config.model.kaem.mixture = True
+	model = rbfKAN(config.model.kaem, P, rngs=nnx.Rngs(key))
+	model.sample_mixture(key, 10)
+
+	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
+	x = jnp.ones((10, 1, Q, P))
+	y = model(x)
+
+	assert y.shape == (10, 1, 1, P)
 
 
 def test_grads():
-	model = kanBANK(config.model.kaem.kan, mixture, P, 0)
-	x = jnp.ones((10, P)) if mixture else jnp.ones((10, Q, P))
+	key = jax.random.key(0)
+	model = rbfKAN(config.model.kaem, P, rngs=nnx.Rngs(key))
+	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
+	x = jnp.ones((10, 1, Q, P))
 
 	def loss_fn(x):
 		y = model(x)

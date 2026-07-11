@@ -3,6 +3,7 @@ import yaml
 import jax
 import os
 import numpy as np
+import jax.numpy as jnp
 from flax import nnx
 from pathlib import Path
 import orbax.checkpoint as ocp
@@ -37,10 +38,13 @@ def update(
 	x: jax.Array,
 	z_post: jax.Array,
 	z_prior: jax.Array,
-) -> jax.Array:
+) -> tuple[jax.Array, jax.Array]:
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
 	state.update(grads)
-	return loss
+	grads_flat = jnp.concatenate(
+		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
+	)
+	return loss, jnp.linalg.norm(grads_flat)
 
 
 class ebmTrainer:
@@ -117,25 +121,25 @@ class ebmTrainer:
 		z_post = self.st.model.sample_posterior(posterior_key, x)
 
 		self.st.model.train()
-		loss = update(self.st, x, z_post, z_prior)
+		loss, grad_norm = update(self.st, x, z_post, z_prior)
 
 		self.st.model.adapt_temps(x, z_post)
 		self.st.model.update_grid(z_post, train_idx)
-		return loss, key
+		return loss, grad_norm, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, key = self.train_step(x, train_idx, subkey)
+			loss, grad_norm, key = self.train_step(x, train_idx, subkey)
 			self.profiler(train_idx)
 
 			train_idx += 1
-			loss_val = float(jax.device_get(loss))
 
 			if self.is_host0:
-				self.writer.write_scalars(train_idx, {"batch_loss": loss_val})
+				self.writer.write_scalars(train_idx, {"batch_loss": loss})
+				self.writer.write_scalars(train_idx, {"grad_norm": grad_norm})
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:

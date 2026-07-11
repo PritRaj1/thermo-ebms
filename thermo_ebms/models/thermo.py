@@ -29,7 +29,7 @@ class Thermo:
 		"""
 		ll = self.thermo_ll(x, z) / (2 * self.gen.sigma**2)
 		rho = ll.std(axis=1)
-		cdf = jnp.cumsum(rho)
+		cdf = jnp.cumsum(1 / rho)
 		cdf = cdf / cdf[-1] + 1e-12
 		return jnp.interp(
 			jnp.linspace(0, 1, self.num_temps),

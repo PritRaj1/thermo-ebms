@@ -5,21 +5,8 @@ import jax.numpy as jnp
 from numpy.polynomial.legendre import leggauss
 
 from .base import neuralEBM
-from .kan import kanBANK
+from .kan import rbfKAN
 from ..config import ModelConfig
-
-
-def get_gauss(
-	layer_p: nnx.Module, P: int, quad_degree: int
-) -> tuple[jax.Array, jax.Array]:
-	nodes, weights = leggauss(quad_degree)
-	nodes, weights = jnp.array(nodes), jnp.array(weights)
-
-	grid = layer_p.grid.item
-	a, b = grid.min(), grid.max()
-	nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
-	weights = weights * 0.5 * (b - a)
-	return nodes, weights
 
 
 def search_one(cdf_1d: jax.Array, u_1d: jax.Array) -> jax.Array:
@@ -30,30 +17,35 @@ class KAEM(neuralEBM):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		super().__init__(config, rngs)
 		del self.ebm.f
-		self.base = "kaem"
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.kan = kanBANK(
-			config.kaem.kan, config.kaem.mixture, self.z_dim, config.seed
-		)
-		self.ebm.en = self.energy
+		self.kan = rbfKAN(config.kaem, self.z_dim, rngs)
+		self.ebm.f = self.kan
 
 		# Gauss–Legendre quadrature for Inverse Transform
-		def expand_p(x: np.ndarray) -> jax.Array:
-			return jnp.repeat(
-				jnp.expand_dims(jnp.array(x), axis=1),
-				self.z_dim,
-				axis=1,
-			)
-
 		self.numquad = config.kaem.numquad
-		nodes, weights = leggauss(self.numquad)
-		self.nodes = nnx.Variable(expand_p(nodes))
-		self.weights = nnx.Variable(expand_p(weights))
-		self.init_gauss()
+		nodes, weights = self.adapt_gauss()
+		self.nodes = nnx.Variable(nodes)
+		self.weights = nnx.Variable(weights)
 
-		# Mixture component to sample
-		self.component = nnx.Variable(jnp.arange(self.kan.Q)[None, :, None])
+	def expand_p(self, x: np.ndarray) -> jax.Array:
+		return jnp.repeat(
+			jnp.expand_dims(jnp.array(x), axis=1),
+			self.z_dim,
+			axis=1,
+		).reshape(self.numquad, 1, 1, self.z_dim)
+
+	def adapt_gauss(
+		self, domain: tuple | None = (-1.5, 1.5)
+	) -> tuple[jax.Array, jax.Array]:
+		"""Adapt Gauss-Legendre integration domain"""
+		nodes, weights = leggauss(self.numquad)
+		nodes, weights = jnp.array(nodes), jnp.array(weights)
+
+		a, b = domain if domain else (-1.5, 1.5)
+		nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
+		weights = weights * 0.5 * (b - a)
+		return self.expand_p(nodes), self.expand_p(weights)
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -61,53 +53,23 @@ class KAEM(neuralEBM):
 		z0 = jax.random.normal(subkey, (N, 1, inner_dim, self.z_dim)) * self.ebm.sigma
 		return z0, key
 
-	def energy(self, z: jax.Array) -> jax.Array:
-		return jnp.take_along_axis(self.kan(z), self.component[...], axis=1).sum()
-
-	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		self.kan.update_grid(z, train_idx)
-
-	def init_gauss(self) -> None:
-		"""Adapt Gauss-Legendre integration domain"""
-		if hasattr(self.kan.layers[0], "grid"):
-			nodes, weights = [], []
-
-			for layer in self.kan.layers:
-				n, w = get_gauss(layer, self.z_dim, self.numquad)
-				nodes.append(n)
-				weights.append(w)
-
-			self.nodes[...] = jnp.stack(nodes, axis=-1)
-			self.weights[...] = jnp.stack(weights, axis=-1)
-
-	def log_p0(self, z: jax.Array) -> jax.Array:
-		"""π_0(z) = N(0, 1)"""
+	def log_p0(self) -> jax.Array:
+		"""π_0(z) = N(0, 1), in_shape = (N_quad, Q, P)"""
 		sigma = self.ebm.sigma
-		return -0.5 * (z / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
-
-	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
-		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
-		if self.kan.mixture:
-			key, subkey = jax.random.split(key)
-			self.component.set_value(
-				jax.random.randint(
-					subkey,
-					shape=(N, 1, self.z_dim),
-					minval=0,
-					maxval=self.kan.Q,
-				)
-			)
-
-		return key
+		return (
+			-0.5 * (self.nodes / sigma) ** 2
+			- jnp.log(sigma)
+			- 0.5 * jnp.log(2.0 * jnp.pi)
+		)
 
 	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
 		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
-		cdf_flat = cdf.reshape(-1, cdf.shape[-1])
+		cdf_flat = cdf.reshape(-1, self.numquad)
 		u_flat = u.reshape(-1)
 		idx = jax.vmap(search_one)(cdf_flat, u_flat).reshape(u.shape)
 		nodes = jnp.broadcast_to(
-			self.nodes.T[None, None, :, :],
-			(u.shape[0], 1, self.z_dim, self.nodes.shape[0]),
+			jnp.reshape(self.nodes, (1, 1, self.kan.P, self.numquad)),
+			(u.shape[0], 1, self.z_dim, self.numquad),
 		)
 
 		# Quadrature bin bounds
@@ -122,40 +84,39 @@ class KAEM(neuralEBM):
 		t = (u.squeeze(-1) - cdf0) / jnp.maximum(cdf1 - cdf0, 1e-12)
 		return z0 + t * (z1 - z0)
 
-	@nnx.jit(static_argnames=("N",))
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
 		inner_dim = 1 if self.kan.mixture else self.kan.Q
+		f = jax.vmap(self.kan)(
+			jnp.expand_dims(jnp.repeat(self.nodes, self.kan.Q, axis=-2), axis=1)
+		)  # Returns resulting component per node
+		pdf = self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0())
 
-		nodes = self.nodes[:, None, :].repeat(inner_dim, axis=1)  # Broadcast Q
-		f = jnp.take_along_axis(
-			self.kan(nodes)[None, :, :, :],  # Unsqueeze num_samples
-			self.component[:, None, :, :],  # Unsqueeze N_quad
-			axis=2,
-		)
+		# Must broadcast num_samples if univariate. Mixture handles through component
+		if not self.kan.mixture:
+			pdf = jnp.repeat(pdf, N, axis=1)
+
+		# Cumulative density via Gauss-Legendre integral
+		cdf = jnp.cumsum(pdf, axis=0)
+		cdf /= cdf[-1, :, :, :] + 1e-12  # Normalize
 
 		key, subkey = jax.random.split(key)
 		u = jax.random.uniform(subkey, shape=(N, inner_dim, self.z_dim, 1))
-
-		pdf = self.weights[None, :, None, :] * jnp.exp(
-			f + self.log_p0(self.nodes)[None, :, None, :]
-		)
-
-		# Cumulative density via Gauss-Legendre integral
-		cdf = jnp.cumsum(pdf, axis=1)
-		cdf /= cdf[:, -1:, :, :] + 1e-12  # Normalize
-		if not self.kan.mixture:
-			cdf = jnp.broadcast_to(cdf, (N, *cdf.shape[1:]))
-
-		z = self.invert_cdf(u, cdf.transpose(0, 2, 3, 1))
+		z = self.invert_cdf(u, cdf.transpose(1, 2, 3, 0))
 		return z[:, None, :, :]
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
-		key = self.sample_mixture(key, N)
-		return self._sample_prior(key, N)
+		key = self.kan.sample_mixture(key, N)
+		z = self._sample_prior(key, N)
+
+		# min_z, max_z = jnp.min(self.kan.centres), jnp.max(self.kan.centres)
+		# nodes, weights = self.adapt_gauss((min_z - 0.2 * min_z, max_z + 0.2 * max_z))
+		# self.nodes[...] = nodes
+		# self.weights[...] = weights
+		return z
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
-		key = self.sample_mixture(key, N)
+		key = self.kan.sample_mixture(key, N)
 		return self._fwd(key, N)

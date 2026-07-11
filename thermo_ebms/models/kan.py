@@ -1,60 +1,72 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
-from jaxkan.models.KAN import KAN
 
-from ..config import KANConfig
+from ..config import KAEMConfig
 
 
-# TODO: jaxkan not initialising, need to implement
-class kanBANK(nnx.Module):
-	"""KAN module with no inner sum"""
+class rbfKAN(nnx.Module):
+	"""1D RBF latent density function"""
 
-	def __init__(self, config: KANConfig, mixture: bool, P: int, seed0: int):
-		self.mixture = mixture
+	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
+
+		self.mixture = config.mixture
 
 		# Kolmogorov-Arnold Theorem width choices, n -> 2n+1
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.layers = nnx.List(
-			[
-				KAN(
-					layer_dims=[1, self.Q],
-					layer_type=config.basis,
-					required_parameters=dict(getattr(config, config.basis)),
-					seed=seed0 + k,
-				)
-				for k in range(P)
-			]
+		n_centres = config.numcentres
+		centers = jnp.linspace(-1.5, 1.5, n_centres)[None, :, None, None]
+		centres = jnp.repeat(jnp.repeat(centers, self.Q, axis=-2), P, axis=-1)
+		self.centres = nnx.Param(centres)
+
+		spacing = 2.0 / (n_centres - 1)
+		log_var = jnp.full((1, n_centres, self.Q, P), jnp.log(spacing))
+		self.log_var = nnx.Param(
+			log_var + rngs.normal((1, n_centres, self.Q, P)) * 0.05
 		)
 
-		self.numgrid = config.grid_updating.numgrid
-		self.freq = nnx.Variable(
-			jnp.array(config.grid_updating.update_frequency, dtype=jnp.float32)
+		self.w_rbf = nnx.Param(
+			rngs.normal((1, n_centres, self.Q, P)) * jnp.sqrt(2.0 / n_centres)
 		)
-		self.decay = config.grid_updating.frequency_decay
+		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)) * 0.01)
 
-	def __call__(self, z: jax.Array) -> jax.Array:
-		batch = z.shape[0]
-		z = jnp.reshape(z, (-1, self.P, 1))
+		# Mixture component to sample
+		self.component = nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
 
-		outs = [layer(z[:, i, :]) for i, layer in enumerate(self.layers)]
-
-		# Mixture -> in (B, Q, P) already
-		outs = jnp.stack(outs, axis=-1)
+	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
+		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
 		if self.mixture:
-			return outs
+			key, subkey = jax.random.split(key)
+			self.component.set_value(
+				jax.random.randint(
+					subkey,
+					shape=(N, 1, 1, self.P),
+					minval=0,
+					maxval=self.Q,
+				)
+			)
 
-		# univariate
-		q = jnp.arange(self.Q)
-		return outs.reshape(batch, self.Q, self.Q, self.P)[:, q, q, :]
+		return key
 
-	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		if train_idx % self.freq == 0:
-			z = jnp.reshape(z, (-1, self.P, 1))
-			for i in range(len(self.layers)):
-				self.layers[i].update_grids(x=z[:, i, :], G_new=self.numgrid)
+	def select_component(self, x: jax.Array) -> jax.Array:
+		"""Choose mixture component along Q dim"""
+		return jnp.take_along_axis(x, self.component, axis=-2)
 
-			if train_idx > 1:
-				self.freq[...] = jnp.floor(self.freq[...] * (2 - self.decay))  # Decay
+	def __call__(self, z: jax.Array, sampling: bool = False) -> jax.Array:
+		"""
+		In: (numsamples, 1, Q, P)
+		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
+		"""
+		centres = self.select_component(self.centres)
+		log_var = self.select_component(self.log_var)
+		w_rbf = self.select_component(self.w_rbf)
+		w_base = self.select_component(self.w_base)
+		if z.shape[-2] > 1:
+			z = self.select_component(z)
+
+		var = nnx.softplus(log_var) + 1e-12
+		rbf = jnp.exp(-0.5 * (z - centres) ** 2 / var)
+		rbf = jnp.sum(rbf * w_rbf, axis=1, keepdims=True)
+		return rbf + w_base * nnx.hard_swish(z)
