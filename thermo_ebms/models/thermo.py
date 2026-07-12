@@ -111,6 +111,7 @@ class thermoEBM(Thermo, neuralEBM):
 		super().__init__(config, rngs)
 		self.num_temps = config.thermo.num_temps
 		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
+		self.adapt_temp_freq = config.thermo.temp_adaption_frequency
 
 		# DEO exchange
 		self.i_pairs = build_pairs(self.num_temps, 0)

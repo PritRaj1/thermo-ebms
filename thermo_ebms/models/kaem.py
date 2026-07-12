@@ -36,13 +36,13 @@ class KAEM(neuralEBM):
 		).reshape(self.numquad, 1, 1, self.z_dim)
 
 	def adapt_gauss(
-		self, domain: tuple | None = (-1.5, 1.5)
+		self, domain: tuple | None = (-1.2, 1.2)
 	) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 
-		a, b = domain if domain else (-1.5, 1.5)
+		a, b = domain if domain else (-1.2, 1.2)
 		nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
 		weights = weights * 0.5 * (b - a)
 		return self.expand_p(nodes), self.expand_p(weights)

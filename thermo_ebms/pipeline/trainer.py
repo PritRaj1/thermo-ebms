@@ -123,8 +123,10 @@ class ebmTrainer:
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 
-		self.st.model.adapt_temps(x, z_post)
-		self.st.model.update_grid(z_post, train_idx)
+		temp_freq = self.st.model.adapt_temp_freq
+		if (temp_freq > 0) and (train_idx % temp_freq == 0):
+			self.st.model.adapt_temps(x, z_post)
+
 		return loss, grad_norm, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:

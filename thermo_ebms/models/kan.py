@@ -17,20 +17,17 @@ class rbfKAN(nnx.Module):
 		self.P = P
 
 		n_centres = config.numcentres
-		centers = jnp.linspace(-1.5, 1.5, n_centres)[None, :, None, None]
+		centers = jnp.linspace(-1.2, 1.2, n_centres)[None, :, None, None]
 		centres = jnp.repeat(jnp.repeat(centers, self.Q, axis=-2), P, axis=-1)
 		self.centres = nnx.Param(centres)
 
 		spacing = 2.0 / (n_centres - 1)
 		log_var = jnp.full((1, n_centres, self.Q, P), jnp.log(spacing))
-		self.log_var = nnx.Param(
-			log_var + rngs.normal((1, n_centres, self.Q, P)) * 0.05
-		)
+		self.log_var = nnx.Param(log_var + rngs.normal((1, n_centres, self.Q, P)))
 
-		self.w_rbf = nnx.Param(
-			rngs.normal((1, n_centres, self.Q, P)) * jnp.sqrt(2.0 / n_centres)
-		)
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)) * 0.01)
+		self.k = nnx.Param(rngs.normal((1, n_centres, self.Q, P)))
+		self.w_rbf = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.component = nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
@@ -61,6 +58,7 @@ class rbfKAN(nnx.Module):
 		"""
 		centres = self.select_component(self.centres)
 		log_var = self.select_component(self.log_var)
+		k = self.select_component(self.k)
 		w_rbf = self.select_component(self.w_rbf)
 		w_base = self.select_component(self.w_base)
 		if z.shape[-2] > 1:
@@ -68,5 +66,5 @@ class rbfKAN(nnx.Module):
 
 		var = nnx.softplus(log_var) + 1e-12
 		rbf = jnp.exp(-0.5 * (z - centres) ** 2 / var)
-		rbf = jnp.sum(rbf * w_rbf, axis=1, keepdims=True)
-		return rbf + w_base * nnx.hard_swish(z)
+		rbf = jnp.sum(rbf * k, axis=1, keepdims=True)
+		return w_rbf * rbf + w_base * nnx.hard_swish(z)

@@ -15,7 +15,7 @@ class neuralEBM(nnx.Module):
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 		self.num_temps = -1
-		self.base = "neural"
+		self.adapt_temp_freq = -1
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -40,6 +40,3 @@ class neuralEBM(nnx.Module):
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		return self._fwd(key, N)
-
-	def update_grid(self, z: jax.Array, train_idx: int) -> None:
-		pass

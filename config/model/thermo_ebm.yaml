@@ -3,3 +3,4 @@ base: neural
 thermo:
   num_temps: 10
   xchange_every: 2
+  temp_adaption_frequency: 1000
