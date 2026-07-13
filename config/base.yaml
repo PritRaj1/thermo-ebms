@@ -28,7 +28,7 @@ model:
     mixture: true
     numquad: 25
     numgrid: 10
-    numcentres: 10
+    degree: 5
 
 optim:
   gen:

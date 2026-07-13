@@ -1,6 +1,5 @@
 import jax
 from flax import nnx
-import jax.numpy as jnp
 
 from .base import neuralEBM
 from .kaem import KAEM
@@ -26,7 +25,7 @@ class MLE:
 		recon = self.gen.loss(x, z_post) / num_samples
 		return contrastive_div + recon
 
-	def adapt_temps(self, progress: jnp.float32 = 0.0) -> None:
+	def adapt_temps(self, train_idx: int, num_updates: int) -> None:
 		pass
 
 

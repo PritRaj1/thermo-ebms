@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.polynomial.legendre import leggauss
 
 from .base import neuralEBM
-from .kan import rbfKAN
+from .kan import chebyKAN
 from ..config import ModelConfig
 
 
@@ -19,7 +19,7 @@ class KAEM(neuralEBM):
 		del self.ebm.f
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.kan = rbfKAN(config.kaem, self.z_dim, rngs)
+		self.kan = chebyKAN(config.kaem, self.z_dim, rngs)
 		self.ebm.f = self.kan
 
 		# Gauss–Legendre quadrature for Inverse Transform
@@ -108,13 +108,7 @@ class KAEM(neuralEBM):
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		key = self.kan.sample_mixture(key, N)
-		z = self._sample_prior(key, N)
-
-		# min_z, max_z = jnp.min(self.kan.centres), jnp.max(self.kan.centres)
-		# nodes, weights = self.adapt_gauss((min_z - 0.2 * min_z, max_z + 0.2 * max_z))
-		# self.nodes[...] = nodes
-		# self.weights[...] = weights
-		return z
+		return self._sample_prior(key, N)
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()

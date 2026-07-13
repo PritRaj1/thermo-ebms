@@ -36,10 +36,10 @@ model:
 
 
   kaem:
-    mixture: False
+    mixture: True
     numquad: 25
     numgrid: 10
-    numcentres: 10
+    degree: 3
 
   thermo:
     num_temps: 3

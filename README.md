@@ -30,7 +30,15 @@ python eval.py run runs/thermo_kaem_cifar10 # single trained model
 python eval.py all-runs runs/ # for all generated samples in folder
 ```
 
-Trainer will run distributed data-parallel if a multi-device environment is detected.
+## GPU rental
+
+The trainer will run distributed data-parallel if a multi-device environment is detected. A script has been provided for GPU renting using [Modal](https://modal.com/):
+
+```python
+python modal.py
+```
+
+Thanks to Modal's generosity, individuals have free access to on-demand GPUs, ($30 credit per month).
 
 ## About
 

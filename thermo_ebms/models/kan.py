@@ -5,35 +5,26 @@ from flax import nnx
 from ..config import KAEMConfig
 
 
-class rbfKAN(nnx.Module):
-	"""1D RBF latent density function"""
+class chebyKAN(nnx.Module):
+	"""1D Chebyshev polynomial latent density function"""
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
-
 		self.mixture = config.mixture
 
 		# Kolmogorov-Arnold Theorem width choices, n -> 2n+1
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		n_centres = config.numcentres
-		centers = jnp.linspace(-1.2, 1.2, n_centres)[None, :, None, None]
-		centres = jnp.repeat(jnp.repeat(centers, self.Q, axis=-2), P, axis=-1)
-		self.centres = nnx.Param(centres)
-
-		spacing = 2.0 / (n_centres - 1)
-		log_var = jnp.full((1, n_centres, self.Q, P), jnp.log(spacing))
-		self.log_var = nnx.Param(log_var + rngs.normal((1, n_centres, self.Q, P)))
-
-		self.k = nnx.Param(rngs.normal((1, n_centres, self.Q, P)))
-		self.w_rbf = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.degree = config.degree
+		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
+		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.component = nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
 
 	def sample_mixture(self, key: jax.Array, N: int) -> jax.Array:
-		"""Sample uniformly from Categorical(1:mixture_components`. Called outside JIT"""
+		"""Sample uniformly from Categorical(1:mixture_components). Called outside JIT"""
 		if self.mixture:
 			key, subkey = jax.random.split(key)
 			self.component.set_value(
@@ -55,16 +46,21 @@ class rbfKAN(nnx.Module):
 		"""
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
+
+		T_0 = 1, T_1 = z
+		T_n = 2z*T_{n-1} - T_{n-2}
 		"""
-		centres = self.select_component(self.centres)
-		log_var = self.select_component(self.log_var)
-		k = self.select_component(self.k)
-		w_rbf = self.select_component(self.w_rbf)
+		coeff = self.select_component(self.coeff)
+		w_cheby = self.select_component(self.w_cheby)
 		w_base = self.select_component(self.w_base)
 		if z.shape[-2] > 1:
 			z = self.select_component(z)
 
-		var = nnx.softplus(log_var) + 1e-12
-		rbf = jnp.exp(-0.5 * (z - centres) ** 2 / var)
-		rbf = jnp.sum(rbf * k, axis=1, keepdims=True)
-		return w_rbf * rbf + w_base * nnx.hard_swish(z)
+		z = nnx.tanh(z)
+		T = [jnp.ones_like(z), z]
+		for i in range(2, self.degree + 1):
+			T.append(2 * z * T[-1] - T[-2])
+
+		basis = jnp.concat(T, axis=1)
+		cheby = jnp.sum(coeff * basis, axis=1, keepdims=True)
+		return w_cheby * cheby + w_base * nnx.hard_swish(z)

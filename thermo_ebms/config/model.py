@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Literal
 
 from .networks import EBMConfig, GENConfig
 
@@ -9,7 +8,7 @@ class KAEMConfig:
 	mixture: bool = True
 	numquad: int = 25
 	numgrid: int = 10
-	numcentres: int = 10
+	degree: int = 3
 
 
 @dataclass
