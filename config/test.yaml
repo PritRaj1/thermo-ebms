@@ -44,7 +44,9 @@ model:
   thermo:
     num_temps: 3
     xchange_every: 2
-    temp_adaption_frequency: 1000
+    annealing_cycle: 0
+    powerlaw_start: 6
+    powerlaw_end: 6
 
 optim:
   gen:

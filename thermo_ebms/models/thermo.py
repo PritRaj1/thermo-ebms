@@ -2,8 +2,9 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from .base import neuralEBM
 from .kaem import KAEM
+from .base import neuralEBM
+from ..config import ThermoConfig
 
 
 def build_pairs(T, offset):
@@ -12,6 +13,19 @@ def build_pairs(T, offset):
 
 
 class Thermo:
+	def init_schedule(self, config: ThermoConfig):
+		"""Init temperature power law schedule"""
+		num_temps = config.num_temps
+		self.num_temps = num_temps if (num_temps % 2 == 0) else num_temps - 1
+		self.cycles = config.annealing_cycle
+		self.p_start = config.powerlaw_start
+		self.p_end = config.powerlaw_end
+		self.temps = nnx.Variable(self._adapt_temps())
+
+		# DEO exchange
+		self.i_pairs = build_pairs(self.num_temps, 0)
+		self.j_pairs = build_pairs(self.num_temps, 1)
+
 	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
 		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""
 		x_gen = self.gen(
@@ -20,26 +34,15 @@ class Thermo:
 
 		return -((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4))
 
-	@nnx.jit
-	def _adapt_temps(self, x: jax.Array, z: jax.Array) -> jax.Array:
-		"""
-		Adapt temps by minimising/equalizing KL div between adjacent power posteriors
-		Min KL(p_t || p_{t+Δt}) = 0.5 Var_t[ log p_β(x | z) * Δt^2]
-		Called outside JIT
-		"""
-		ll = self.thermo_ll(x, z) / (2 * self.gen.sigma**2)
-		rho = ll.std(axis=1)
-		cdf = jnp.cumsum(1 / rho)
-		cdf = cdf / cdf[-1] + 1e-12
-		return jnp.interp(
-			jnp.linspace(0, 1, self.num_temps),
-			cdf,
-			self.temps,
-		)
+	def _adapt_temps(self, progress: jnp.float32 = 0.0) -> jax.Array:
+		"""Power law temeprature scheduling with exponent adaption"""
+		t_i = 2.0 * jnp.pi * (self.cycles + 0.5) * progress
+		p = self.p_start + (self.p_end - self.p_start) * 0.5 * (1.0 - jnp.cos(t_i))
+		return (jnp.arange(self.num_temps) / self.num_temps) ** p
 
-	def adapt_temps(self, x: jax.Array, z: jax.Array) -> None:
+	def adapt_temps(self, train_idx: int, total_updates: int) -> None:
 		self.eval()
-		self.temps[...] = self._adapt_temps(x, z)
+		self.temps[...] = self._adapt_temps(train_idx / total_updates)
 
 	def replica_xchange(
 		self,
@@ -109,21 +112,10 @@ class Thermo:
 class thermoEBM(Thermo, neuralEBM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.num_temps = config.thermo.num_temps
-		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
-		self.adapt_temp_freq = config.thermo.temp_adaption_frequency
-
-		# DEO exchange
-		self.i_pairs = build_pairs(self.num_temps, 0)
-		self.j_pairs = build_pairs(self.num_temps, 1)
+		self.init_schedule(config.thermo)
 
 
 class thermoKAEM(Thermo, KAEM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.num_temps = config.thermo.num_temps
-		self.temps = nnx.Variable(jnp.linspace(0.0, 1.0, self.num_temps))
-
-		# DEO exchange
-		self.i_pairs = build_pairs(self.num_temps, 0)
-		self.j_pairs = build_pairs(self.num_temps, 1)
+		self.init_schedule(config.thermo)
