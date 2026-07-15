@@ -27,7 +27,6 @@ model:
   kaem:
     mixture: true
     numquad: 25
-    numgrid: 10
     degree: 5
 
 optim:
