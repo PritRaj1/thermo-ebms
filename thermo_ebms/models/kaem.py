@@ -87,7 +87,7 @@ class KAEM(neuralEBM):
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
 		inner_dim = 1 if self.kan.mixture else self.kan.Q
-		f = jax.vmap(self.kan)(
+		f = jax.vmap(self.kan.componentwise_pdf)(
 			jnp.expand_dims(jnp.repeat(self.nodes, self.kan.Q, axis=-2), axis=1)
 		)  # Returns resulting component per node
 		pdf = self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0())

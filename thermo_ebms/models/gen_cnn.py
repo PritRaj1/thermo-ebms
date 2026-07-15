@@ -65,7 +65,7 @@ class GEN(nnx.Module):
 					padding=last.padding,
 				),
 			),
-			jax.nn.tanh,
+			nnx.hard_tanh,
 		]
 
 		self.g = nnx.Sequential(*layers)

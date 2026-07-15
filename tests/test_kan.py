@@ -29,7 +29,7 @@ def test_shape_mixture():
 
 	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
 	x = jnp.ones((10, 1, Q, P))
-	y = model(x)
+	y = model.componentwise_pdf(x)
 
 	assert y.shape == (10, 1, 1, P)
 

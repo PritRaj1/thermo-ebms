@@ -36,7 +36,7 @@ model:
 
 
   kaem:
-    mixture: True
+    mixture: False
     numquad: 25
     degree: 3
 
