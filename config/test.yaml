@@ -38,7 +38,6 @@ model:
   kaem:
     mixture: False
     numquad: 25
-    degree: 3
 
   thermo:
     num_temps: 3

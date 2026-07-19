@@ -27,7 +27,6 @@ model:
   kaem:
     mixture: true
     numquad: 25
-    degree: 3
 
 optim:
   gen:

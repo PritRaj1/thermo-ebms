@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.polynomial.legendre import leggauss
 
 from .base import neuralEBM
-from .kan import chebyKAN
+from .kan import wavKAN
 from ..config import ModelConfig
 
 
@@ -19,7 +19,7 @@ class KAEM(neuralEBM):
 		del self.ebm.f
 
 		# No-inner-sum KAN (Q*P 1D functions)
-		self.kan = chebyKAN(config.kaem, self.z_dim, rngs)
+		self.kan = wavKAN(config.kaem, self.z_dim, rngs)
 		self.ebm.f = self.kan
 
 		# Gauss–Legendre quadrature for Inverse Transform

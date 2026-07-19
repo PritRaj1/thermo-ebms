@@ -7,7 +7,6 @@ from .networks import EBMConfig, GENConfig
 class KAEMConfig:
 	mixture: bool = True
 	numquad: int = 25
-	degree: int = 3
 
 
 @dataclass

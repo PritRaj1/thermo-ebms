@@ -5,8 +5,8 @@ from flax import nnx
 from ..config import KAEMConfig
 
 
-class chebyKAN(nnx.Module):
-	"""1D Chebyshev polynomial latent density function"""
+class wavKAN(nnx.Module):
+	"""1D Morlet wavelet latent density function"""
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
@@ -15,9 +15,10 @@ class chebyKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.degree = config.degree
-		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
-		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
@@ -50,37 +51,35 @@ class chebyKAN(nnx.Module):
 
 		return jnp.take_along_axis(x, self.component, axis=-2)
 
-	def basis(self, z: jax.Array, coeff: jax.Array) -> jax.Array:
-		z = nnx.hard_tanh(z)
-		T = [jnp.ones_like(z), z]
-		for i in range(2, self.degree + 1):
-			T.append(2 * z * T[-1] - T[-2])
-
-		basis = jnp.concat(T, axis=1)
-		return jnp.sum(coeff * basis, axis=1, keepdims=True)
+	def basis(
+		self, z: jax.Array, translation: jax.Array, bandwidth: jax.Array, tau: jax.Array
+	) -> jax.Array:
+		z = (z - translation) / bandwidth
+		real = jnp.cos(tau * z)
+		envelope = jnp.exp(-(z**2) / 2)
+		return real * envelope
 
 	def __call__(self, z: jax.Array) -> jax.Array:
-		cheby = self.basis(z, self.coeff)
-		f = self.w_cheby * cheby + self.w_base * nnx.hard_swish(z)
+		wav = self.basis(z, self.translation, self.bandwidth, self.tau)
+		f = self.w_wav * wav + self.w_base * nnx.hard_swish(z)
 		if not self.mixture:
 			return f
 
 		log_alpha = nnx.log_softmax(self.alpha, axis=-2)
-		return nnx.logsumexp(f - log_alpha, axis=-2)
+		return nnx.logsumexp(f + log_alpha, axis=-2)
 
 	def componentwise_pdf(self, z: jax.Array) -> jax.Array:
 		"""
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
-
-		T_0 = 1, T_1 = z
-		T_n = 2z*T_{n-1} - T_{n-2}
 		"""
-		coeff = self.select_component(self.coeff)
-		w_cheby = self.select_component(self.w_cheby)
+		translation = self.select_component(self.translation)
+		bandwidth = self.select_component(self.bandwidth)
+		tau = self.select_component(self.tau)
+		w_wav = self.select_component(self.w_wav)
 		w_base = self.select_component(self.w_base)
 		if z.shape[-2] > 1:
 			z = self.select_component(z)
 
-		cheby = self.basis(z, coeff)
-		return w_cheby * cheby + w_base * nnx.hard_swish(z)
+		wav = self.basis(z, translation, bandwidth, tau)
+		return w_wav * wav + w_base * nnx.hard_swish(z)
