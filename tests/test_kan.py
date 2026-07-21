@@ -16,7 +16,9 @@ def test_shape():
 
 	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
 	x = jnp.ones((10, 1, Q, P))
-	y = model(x)
+	y = model(
+		x, model.translation, model.bandwidth, model.tau, model.w_wav, model.w_base
+	)
 
 	assert y.shape == (10, 1, Q, P)
 
@@ -39,9 +41,10 @@ def test_grads():
 	model = wavKAN(config.model.kaem, P, rngs=nnx.Rngs(key))
 	Q = (P - 1) // 2 if config.model.kaem.mixture else 2 * P + 1
 	x = jnp.ones((10, 1, Q, P))
+	z = jnp.zeros((10, 1, Q, P))
 
 	def loss_fn(x):
-		y = model(x)
+		y = model.loss(x, z)
 		return jnp.mean(y)
 
 	grads = jax.grad(loss_fn)(x)

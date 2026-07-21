@@ -27,6 +27,7 @@ model:
   kaem:
     mixture: true
     numquad: 25
+    p0_stddev: 1.0
 
 optim:
   gen:

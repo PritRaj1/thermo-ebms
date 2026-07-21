@@ -13,8 +13,8 @@ def test_sample_prior_shape():
 	model = KAEM(config.model, rngs=nnx.Rngs(key))
 
 	N = 10
-	key = model.kan.sample_mixture(key, N)
+	key = model.ebm.sample_mixture(key, N)
 	z = model.sample_prior(key, N)
 
-	inner_dim = 1 if config.model.kaem.mixture else model.kan.Q
+	inner_dim = 1 if config.model.kaem.mixture else model.ebm.Q
 	assert z.shape == (N, 1, inner_dim, model.z_dim)
