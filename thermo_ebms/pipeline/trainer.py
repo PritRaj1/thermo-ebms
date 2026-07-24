@@ -120,15 +120,13 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		z_grid = jnp.linspace(-1.0, 1.0, num=200)
+		z_grid = jnp.linspace(-3.0, 3.0, num=200)
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
 			ebm.P,
 			axis=-1,
 		)
-		f = ebm(z, ebm.coeff, ebm.w_cheby, ebm.w_base)[
-			:, 1, 1, 1
-		]  # Q = 1, P = 1 component
+		f = ebm(z)[:, 1, 1, 1]  # Q = 1, P = 1 component
 		log_p0 = (
 			-0.5 * (z_grid / ebm.sigma) ** 2
 			- jnp.log(ebm.sigma)
@@ -138,9 +136,6 @@ class ebmTrainer:
 		unnormalized_pdf = jnp.exp(f + log_p0)
 		quad = ebm(
 			jnp.repeat(ebm.nodes, ebm.Q, axis=-2),
-			ebm.coeff,
-			ebm.w_cheby,
-			ebm.w_base,
 		)
 		Z = jnp.sum(
 			ebm.weights * jnp.exp(quad + ebm.log_p0(ebm.nodes)),
@@ -160,7 +155,7 @@ class ebmTrainer:
 			ref_np,
 			color="#7f7f7f",
 			linestyle="--",
-			linewidth=1.5,
+			linewidth=3.0,
 			label=r"Ref $\mathcal{N}(0, 1)$",
 		)
 		ax.fill_between(z_np, ref_np, color="#7f7f7f", alpha=0.25, label="_nolegend_")
@@ -177,7 +172,7 @@ class ebmTrainer:
 		ax.set_title(f"Density, (Q=1,P=1) vs. Std Gaussian (Step {step})")
 		ax.set_xlabel("z")
 		ax.set_ylabel("PDF")
-		ax.set_xlim([-1.0, 1.0])
+		ax.set_xlim([-3.0, 3.0])
 		ax.set_ylim(bottom=0.0)
 		ax.grid(True, linestyle=":", alpha=0.6)
 		ax.legend(loc="upper right", frameon=True)
