@@ -27,6 +27,7 @@ model:
   kaem:
     mixture: true
     numquad: 25
+    degree: 3
     p0_stddev: 1.0
 
 optim:

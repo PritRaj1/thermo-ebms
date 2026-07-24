@@ -7,8 +7,8 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-class wavKAN(nnx.Module):
-	"""1D Morlet wavelet latent density function"""
+class chebyKAN(nnx.Module):
+	"""1D Morlet chebyelet latent density function"""
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
@@ -18,10 +18,9 @@ class wavKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.degree = config.degree
+		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
+		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
@@ -46,13 +45,13 @@ class wavKAN(nnx.Module):
 		).reshape(self.numquad, 1, 1, self.P)
 
 	def adapt_gauss(
-		self, domain: tuple | None = (-1.2, 1.2)
+		self, domain: tuple | None = (-1.0, 1.0)
 	) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 
-		a, b = domain if domain else (-1.2, 1.2)
+		a, b = domain if domain else (-1.0, 1.0)
 		nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
 		weights = weights * 0.5 * (b - a)
 		return self.expand_p(nodes), self.expand_p(weights)
@@ -90,19 +89,19 @@ class wavKAN(nnx.Module):
 	def __call__(
 		self,
 		z: jax.Array,
-		translation: jax.Array,
-		bandwidth: jax.Array,
-		tau: jax.Array,
-		w_wav: jax.Array,
+		coeff: jax.Array,
+		w_cheby: jax.Array,
 		w_base: jax.Array,
 	) -> jax.Array:
-		z_scaled = (z - translation) / bandwidth
-		real = jnp.cos(tau * z_scaled)
-		envelope = jnp.exp(-(z_scaled**2) / 2)
-		return w_wav * (real * envelope) + w_base * nnx.hard_swish(z)
+		z_cheby = nnx.tanh(z)
+		T = [jnp.ones_like(z_cheby), nnx.hard_tanh(z_cheby)]
+		for i in range(2, self.degree + 1):
+			T.append(2 * z_cheby * T[-1] - T[-2])
+		cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
+		return w_cheby * cheby + w_base * nnx.hard_swish(z)
 
 	def en(self, z: jax.Array, partition: jax.Array | None = None) -> jax.Array:
-		f = self(z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base)
+		f = self(z, self.coeff, self.w_cheby, self.w_base)
 		if not self.mixture:
 			return f.sum()
 
@@ -122,10 +121,8 @@ class wavKAN(nnx.Module):
 
 		quad = self(
 			jnp.repeat(self.nodes, self.Q, axis=-2),
-			self.translation,
-			self.bandwidth,
-			self.tau,
-			self.w_wav,
+			self.coeff,
+			self.w_cheby,
 			self.w_base,
 		)
 		Z = jnp.sum(
@@ -140,12 +137,10 @@ class wavKAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
 		"""
-		translation = self.select_component(self.translation)
-		bandwidth = self.select_component(self.bandwidth)
-		tau = self.select_component(self.tau)
-		w_wav = self.select_component(self.w_wav)
+		coeff = self.select_component(self.coeff)
+		w_cheby = self.select_component(self.w_cheby)
 		w_base = self.select_component(self.w_base)
 		if z.shape[-2] > 1:
 			z = self.select_component(z)
 
-		return self(z, translation, bandwidth, tau, w_wav, w_base)
+		return self(z, coeff, w_cheby, w_base)
