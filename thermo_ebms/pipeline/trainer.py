@@ -3,12 +3,13 @@ import yaml
 import jax
 import os
 import numpy as np
-import jax.numpy as jnp
 from flax import nnx
+import jax.numpy as jnp
 from pathlib import Path
 import orbax.checkpoint as ocp
 from clu import metric_writers
 from clu import periodic_actions
+import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 from jax.experimental.multihost_utils import sync_global_devices
@@ -52,12 +53,13 @@ class ebmTrainer:
 		self,
 		config: Config,
 	):
+		self.model_type = config.model.base.lower()
 		model_cls = {
 			("neural", True): thermoEBM,
 			("neural", False): mleEBM,
 			("kaem", True): thermoKAEM,
 			("kaem", False): mleKAEM,
-		}[(config.model.base.lower(), config.model.thermo.num_temps > 1)]
+		}[(self.model_type, config.model.thermo.num_temps > 1)]
 
 		# Distributed data parallel sharding
 		self.mesh = Mesh(jax.devices(), axis_names=("data",))
@@ -113,6 +115,79 @@ class ebmTrainer:
 			logdir=self.logdir,
 		)
 
+	def plot_kaem_component(self, step: int) -> np.ndarray:
+		model = self.st.model
+		model.eval()
+		ebm = model.ebm
+
+		z_grid = jnp.linspace(-1.0, 1.0, num=200)
+		z = jnp.repeat(
+			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
+			ebm.P,
+			axis=-1,
+		)
+		f = ebm(z, ebm.coeff, ebm.w_cheby, ebm.w_base)[
+			:, 1, 1, 1
+		]  # Q = 1, P = 1 component
+		log_p0 = (
+			-0.5 * (z_grid / ebm.sigma) ** 2
+			- jnp.log(ebm.sigma)
+			- 0.5 * jnp.log(2.0 * jnp.pi)
+		)
+
+		unnormalized_pdf = jnp.exp(f + log_p0)
+		quad = ebm(
+			jnp.repeat(ebm.nodes, ebm.Q, axis=-2),
+			ebm.coeff,
+			ebm.w_cheby,
+			ebm.w_base,
+		)
+		Z = jnp.sum(
+			ebm.weights * jnp.exp(quad + ebm.log_p0(ebm.nodes)),
+			axis=0,
+			keepdims=True,
+		)[:, 1, 1, 1]
+		pdf = unnormalized_pdf / Z
+		ref_pdf = (1.0 / jnp.sqrt(2.0 * jnp.pi)) * jnp.exp(-0.5 * z_grid**2)
+
+		z_np = np.asarray(z_grid)
+		pdf_np = np.asarray(pdf)
+		ref_np = np.asarray(ref_pdf)
+
+		fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
+		ax.plot(
+			z_np,
+			ref_np,
+			color="#7f7f7f",
+			linestyle="--",
+			linewidth=1.5,
+			label=r"Ref $\mathcal{N}(0, 1)$",
+		)
+		ax.fill_between(z_np, ref_np, color="#7f7f7f", alpha=0.25, label="_nolegend_")
+
+		ax.plot(
+			z_np,
+			pdf_np,
+			color="#1f77b4",
+			linewidth=2.0,
+			label="KAEM Component)",
+		)
+		ax.fill_between(z_np, pdf_np, color="#1f77b4", alpha=0.35, label="_nolegend_")
+
+		ax.set_title(f"Density, (Q=1,P=1) vs. Std Gaussian (Step {step})")
+		ax.set_xlabel("z")
+		ax.set_ylabel("PDF")
+		ax.set_xlim([-1.0, 1.0])
+		ax.set_ylim(bottom=0.0)
+		ax.grid(True, linestyle=":", alpha=0.6)
+		ax.legend(loc="upper right", frameon=True)
+		fig.tight_layout()
+
+		fig.canvas.draw()
+		image_array = np.asarray(fig.canvas.buffer_rgba())[:, :, :3]
+		plt.close(fig)
+		return image_array
+
 	def train_step(
 		self, x: jax.Array, train_idx: int, key: jax.Array
 	) -> tuple[jax.Array, jax.Array]:
@@ -143,6 +218,11 @@ class ebmTrainer:
 		if (epoch % self.sample_every == 0) and self.is_host0:
 			x, key = self.st.model(key, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": to_uint8(x)})
+
+			if self.model_type == "kaem":
+				self.writer.write_images(
+					train_idx, {"kaem_density": self.plot_kaem_component(train_idx)}
+				)
 
 		if self.is_host0:
 			self.ckpt_manager.save(
