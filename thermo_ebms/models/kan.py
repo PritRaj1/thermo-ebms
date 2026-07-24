@@ -39,7 +39,9 @@ class wavKAN(nnx.Module):
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
-		self.alpha = nnx.Param(rngs.normal((1, 1, self.Q, P))) if self.mixture else None
+		self.alpha = (
+			nnx.Param(rngs.uniform((1, 1, self.Q, P))) if self.mixture else None
+		)
 		self.component = (
 			nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
 			if self.mixture
@@ -128,17 +130,14 @@ class wavKAN(nnx.Module):
 		if not self.mixture:
 			return -(self.en(z_post) - self.en(z_prior))
 
-		quad = self(
-			jnp.repeat(self.nodes, self.Q, axis=-2),
-		)
 		Z = jnp.sum(
-			self.weights * jnp.exp(quad + self.log_p0(self.nodes)),
+			self.weights * jnp.exp(self(self.nodes) + self.log_p0(self.nodes)),
 			axis=0,
 			keepdims=True,
 		)
-		return -self.en(z_post, partition=Z)
+		return -self.en(z_post, partition=jnp.log(Z))
 
-	def componentwise_pdf(self, z: jax.Array) -> jax.Array:
+	def componentwise_f(self, z: jax.Array) -> jax.Array:
 		"""
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
@@ -148,7 +147,11 @@ class wavKAN(nnx.Module):
 		tau = self.select_component(self.tau)
 		w_wav = self.select_component(self.w_wav)
 		w_base = self.select_component(self.w_base)
-		if z.shape[-2] > 1:
-			z = self.select_component(z)
-
+		z = self.select_component(z)
 		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
+
+	def pdf_per_node(self):
+		f = jax.vmap(self.componentwise_f)(
+			jnp.expand_dims(jnp.repeat(self.nodes, self.Q, axis=-2), axis=1)
+		)
+		return self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0(self.nodes))

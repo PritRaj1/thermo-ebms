@@ -169,7 +169,7 @@ class ebmTrainer:
 		)
 		ax.fill_between(z_np, pdf_np, color="#1f77b4", alpha=0.35, label="_nolegend_")
 
-		ax.set_title(f"Density, (Q=1,P=1) vs. Std Gaussian (Step {step})")
+		ax.set_title(f"Density, (Q=1,P=1) (Epoch {step})")
 		ax.set_xlabel("z")
 		ax.set_ylabel("PDF")
 		ax.set_xlim([-3.0, 3.0])
@@ -216,7 +216,7 @@ class ebmTrainer:
 
 			if self.model_type == "kaem":
 				self.writer.write_images(
-					train_idx, {"kaem_density": self.plot_kaem_component(train_idx)}
+					train_idx, {"kaem_density": self.plot_kaem_component(epoch)}
 				)
 
 		if self.is_host0:

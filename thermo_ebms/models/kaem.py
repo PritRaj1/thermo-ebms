@@ -52,12 +52,7 @@ class KAEM(nnx.Module):
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
 		inner_dim = 1 if self.ebm.mixture else self.ebm.Q
-		f = jax.vmap(self.ebm.componentwise_pdf)(
-			jnp.expand_dims(jnp.repeat(self.ebm.nodes, self.ebm.Q, axis=-2), axis=1)
-		)  # Returns resulting component per node
-		pdf = self.ebm.weights * jnp.exp(
-			f.squeeze(axis=2) + self.ebm.log_p0(self.ebm.nodes)
-		)
+		pdf = self.ebm.pdf_per_node()
 
 		# Must broadcast num_samples if univariate. Mixture handles through component
 		if not self.ebm.mixture:
