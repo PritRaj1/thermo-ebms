@@ -24,6 +24,8 @@ def morlet_wavelet(
 class wavKAN(nnx.Module):
 	"""1D Morlet wavelet latent density function"""
 
+	domain: tuple = (-3.0, 3.0)
+
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
 		self.sigma = config.p0_stddev
@@ -61,14 +63,12 @@ class wavKAN(nnx.Module):
 			axis=1,
 		).reshape(self.numquad, 1, 1, self.P)
 
-	def adapt_gauss(
-		self, domain: tuple | None = (-3.0, 3.0)
-	) -> tuple[jax.Array, jax.Array]:
+	def adapt_gauss(self) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 
-		a, b = domain if domain else (-3.0, 3.0)
+		a, b = self.domain
 		nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
 		weights = weights * 0.5 * (b - a)
 		return self.expand_p(nodes), self.expand_p(weights)
@@ -111,16 +111,19 @@ class wavKAN(nnx.Module):
 			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
 		)
 
-	def en(self, z: jax.Array, partition: jax.Array | None = None) -> jax.Array:
+	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
 		if not self.mixture:
 			return f.sum()
 
 		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
-		if partition is not None:
-			f = f - partition
+		Z = jnp.sum(
+			self.weights * jnp.exp(self(self.nodes) + self.log_p0(self.nodes)),
+			axis=0,
+			keepdims=True,
+		)
 
-		return nnx.logsumexp(f, axis=-2).sum()
+		return nnx.logsumexp(f - jnp.log(Z), axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		return jax.grad(self.en)(z)
@@ -130,12 +133,7 @@ class wavKAN(nnx.Module):
 		if not self.mixture:
 			return -(self.en(z_post) - self.en(z_prior))
 
-		Z = jnp.sum(
-			self.weights * jnp.exp(self(self.nodes) + self.log_p0(self.nodes)),
-			axis=0,
-			keepdims=True,
-		)
-		return -self.en(z_post, partition=jnp.log(Z))
+		return -self.en(z_post)
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
 		"""

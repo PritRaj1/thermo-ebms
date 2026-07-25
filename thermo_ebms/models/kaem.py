@@ -29,12 +29,15 @@ class KAEM(nnx.Module):
 
 	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
 		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
-		cdf_flat = cdf.reshape(-1, self.ebm.numquad)
+		cdf_flat = cdf.reshape(-1, self.ebm.numquad + 1)
 		u_flat = u.reshape(-1)
 		idx = jax.vmap(search_one)(cdf_flat, u_flat).reshape(u.shape)
-		nodes = jnp.broadcast_to(
-			jnp.reshape(self.ebm.nodes, (1, 1, self.ebm.P, self.ebm.numquad)),
-			(u.shape[0], 1, self.z_dim, self.ebm.numquad),
+
+		min_z = jnp.full((1,) + self.ebm.nodes.shape[1:], self.ebm.domain[0])
+		nodes = jnp.concatenate([min_z, self.ebm.nodes], axis=0)
+		grid = jnp.broadcast_to(
+			jnp.reshape(nodes, (1, 1, self.ebm.P, self.ebm.numquad + 1)),
+			(u.shape[0], 1, self.z_dim, self.ebm.numquad + 1),
 		)
 
 		# Quadrature bin bounds
@@ -42,8 +45,8 @@ class KAEM(nnx.Module):
 		idx1 = idx0 + 1
 		cdf0 = jnp.take_along_axis(cdf, idx0, axis=-1).squeeze(-1)
 		cdf1 = jnp.take_along_axis(cdf, idx1, axis=-1).squeeze(-1)
-		z0 = jnp.take_along_axis(nodes, idx0, axis=-1).squeeze(-1)
-		z1 = jnp.take_along_axis(nodes, idx1, axis=-1).squeeze(-1)
+		z0 = jnp.take_along_axis(grid, idx0, axis=-1).squeeze(-1)
+		z1 = jnp.take_along_axis(grid, idx1, axis=-1).squeeze(-1)
 
 		# Interpolate within bin
 		t = (u.squeeze(-1) - cdf0) / jnp.maximum(cdf1 - cdf0, 1e-12)
@@ -59,7 +62,8 @@ class KAEM(nnx.Module):
 			pdf = jnp.repeat(pdf, N, axis=1)
 
 		# Cumulative density via Gauss-Legendre integral
-		cdf = jnp.cumsum(pdf, axis=0)
+		zeros = jnp.zeros((1,) + pdf.shape[1:])
+		cdf = jnp.concatenate([zeros, jnp.cumsum(pdf, axis=0)], axis=0)
 		cdf /= cdf[-1, :, :, :] + 1e-12  # Normalize
 
 		key, subkey = jax.random.split(key)

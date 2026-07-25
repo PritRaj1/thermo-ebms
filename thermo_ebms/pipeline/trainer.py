@@ -120,7 +120,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		z_grid = jnp.linspace(-3.0, 3.0, num=200)
+		z_grid = jnp.linspace(ebm.domain[0], ebm.domain[1], num=200)
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
 			ebm.P,
@@ -172,7 +172,7 @@ class ebmTrainer:
 		ax.set_title(f"Density, (Q=1,P=1) (Epoch {step})")
 		ax.set_xlabel("z")
 		ax.set_ylabel("PDF")
-		ax.set_xlim([-3.0, 3.0])
+		ax.set_xlim(list(ebm.domain))
 		ax.set_ylim(bottom=0.0)
 		ax.grid(True, linestyle=":", alpha=0.6)
 		ax.legend(loc="upper right", frameon=True)
