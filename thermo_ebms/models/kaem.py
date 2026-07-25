@@ -28,7 +28,7 @@ class KAEM(nnx.Module):
 		return z0, key
 
 	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
-		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, Q, P, G)"""
+		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, 1, P, G)"""
 		cdf_flat = cdf.reshape(-1, self.ebm.numquad + 1)
 		u_flat = u.reshape(-1)
 		idx = jax.vmap(search_one)(cdf_flat, u_flat).reshape(u.shape)
@@ -36,7 +36,7 @@ class KAEM(nnx.Module):
 		min_z = jnp.full((1,) + self.ebm.nodes.shape[1:], self.ebm.domain[0])
 		nodes = jnp.concatenate([min_z, self.ebm.nodes], axis=0)
 		grid = jnp.broadcast_to(
-			jnp.reshape(nodes, (1, 1, self.ebm.P, self.ebm.numquad + 1)),
+			jnp.reshape(nodes, (1, 1, self.z_dim, self.ebm.numquad + 1)),
 			(u.shape[0], 1, self.z_dim, self.ebm.numquad + 1),
 		)
 
@@ -54,7 +54,6 @@ class KAEM(nnx.Module):
 
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
-		inner_dim = 1 if self.ebm.mixture else self.ebm.Q
 		pdf = self.ebm.pdf_per_node()
 
 		# Must broadcast num_samples if univariate. Mixture handles through component
@@ -67,7 +66,10 @@ class KAEM(nnx.Module):
 		cdf /= cdf[-1, :, :, :] + 1e-12  # Normalize
 
 		key, subkey = jax.random.split(key)
-		u = jax.random.uniform(subkey, shape=(N, inner_dim, self.z_dim, 1))
+		u = jax.random.uniform(subkey, shape=(N, 1, self.z_dim, 1))
+		if not self.ebm.mixture:
+			u = jnp.repeat(u, self.ebm.Q, axis=1)
+
 		z = self.invert_cdf(u, cdf.transpose(1, 2, 3, 0))
 		return z[:, None, :, :]
 

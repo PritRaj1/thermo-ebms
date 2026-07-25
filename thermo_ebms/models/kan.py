@@ -41,9 +41,7 @@ class wavKAN(nnx.Module):
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
-		self.alpha = (
-			nnx.Param(rngs.uniform((1, 1, self.Q, P))) if self.mixture else None
-		)
+		self.alpha = nnx.Param(jnp.ones((1, 1, self.Q, P))) if self.mixture else None
 		self.component = (
 			nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
 			if self.mixture
@@ -126,12 +124,16 @@ class wavKAN(nnx.Module):
 		return nnx.logsumexp(f - jnp.log(Z), axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
-		return jax.grad(self.en)(z)
+		grad_f = jax.grad(self.en)(z)
+		if self.mixture:
+			return grad_f
+
+		return -grad_f - z / (self.sigma**2)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
 		if not self.mixture:
-			return -(self.en(z_post) - self.en(z_prior))
+			return self.en(z_post) - self.en(z_prior)
 
 		return -self.en(z_post)
 

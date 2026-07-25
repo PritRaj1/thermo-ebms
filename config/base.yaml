@@ -22,11 +22,11 @@ model:
     groupnorm: False
     mcmc:
       stepsize: 0.01
-      numsteps: 20
+      numsteps: 40
 
   kaem:
     mixture: true
-    numquad: 25
+    numquad: 100
     p0_stddev: 1.0
 
 optim:
