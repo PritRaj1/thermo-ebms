@@ -120,14 +120,14 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (-3.0, 3.0)
+		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.min(ebm.nodes[:, :, :, 1]))
 		z_grid = jnp.linspace(*domain, num=200)
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
 			ebm.P,
 			axis=-1,
 		)
-		f = ebm(z)[:, 1, 1, 1]  # Q = 1, P = 1 component
+		f = ebm(z)[:, 0, 0, 0]  # Q = 1, P = 1 component
 		log_p0 = (
 			-0.5 * (z_grid / ebm.sigma) ** 2
 			- jnp.log(ebm.sigma)
@@ -142,7 +142,7 @@ class ebmTrainer:
 			ebm.weights * jnp.exp(quad + ebm.log_p0(ebm.nodes)),
 			axis=0,
 			keepdims=True,
-		)[:, 1, 1, 1]
+		)[:, 0, 0, 0]
 		pdf = unnormalized_pdf / Z
 		ref_pdf = (1.0 / jnp.sqrt(2.0 * jnp.pi)) * jnp.exp(-0.5 * z_grid**2)
 
@@ -194,6 +194,7 @@ class ebmTrainer:
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
+		self.st.model.update_domain(z_post, train_idx)
 		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
