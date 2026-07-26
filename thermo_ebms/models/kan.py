@@ -24,7 +24,7 @@ def morlet_wavelet(
 class wavKAN(nnx.Module):
 	"""1D Morlet wavelet latent density function"""
 
-	domain: tuple = (-3.0, 3.0)
+	init_domain: tuple = (-3.0, 3.0)
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
@@ -50,7 +50,10 @@ class wavKAN(nnx.Module):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
-		nodes, weights = self.adapt_gauss()
+		self.update_every = config.domain_update_freq
+		lo = jnp.full((1, 1, 1, self.P), self.init_domain[0])
+		hi = jnp.full((1, 1, 1, self.P), self.init_domain[1])
+		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
 
@@ -61,15 +64,15 @@ class wavKAN(nnx.Module):
 			axis=1,
 		).reshape(self.numquad, 1, 1, self.P)
 
-	def adapt_gauss(self) -> tuple[jax.Array, jax.Array]:
+	def adapt_gauss(self, lo: jax.Array, hi: jax.Array) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
+		nodes, weights = self.expand_p(nodes), self.expand_p(weights)
 
-		a, b = self.domain
-		nodes = 0.5 * (b - a) * nodes + 0.5 * (a + b)
-		weights = weights * 0.5 * (b - a)
-		return self.expand_p(nodes), self.expand_p(weights)
+		nodes = 0.5 * (hi - lo) * nodes + 0.5 * (lo + hi)
+		weights = weights * 0.5 * (hi - lo)
+		return nodes, weights
 
 	def log_p0(self, z: jax.Array) -> jax.Array:
 		"""π_0(z) = N(0, 1), in_shape = (N_quad, Q, P)"""

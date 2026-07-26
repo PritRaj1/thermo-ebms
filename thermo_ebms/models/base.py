@@ -40,3 +40,6 @@ class neuralEBM(nnx.Module):
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		return self._fwd(key, N)
+
+	def update_domain(self, z: jax.Array, step: int) -> None:
+		pass

@@ -120,7 +120,8 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		z_grid = jnp.linspace(ebm.domain[0], ebm.domain[1], num=200)
+		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.min(ebm.nodes[:, :, :, 1]))
+		z_grid = jnp.linspace(*domain, num=200)
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
 			ebm.P,
@@ -172,7 +173,7 @@ class ebmTrainer:
 		ax.set_title(f"Density, (Q=1,P=1) (Epoch {step})")
 		ax.set_xlabel("z")
 		ax.set_ylabel("PDF")
-		ax.set_xlim(list(ebm.domain))
+		ax.set_xlim(list(domain))
 		ax.set_ylim(bottom=0.0)
 		ax.grid(True, linestyle=":", alpha=0.6)
 		ax.legend(loc="upper right", frameon=True)
@@ -193,6 +194,7 @@ class ebmTrainer:
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
+		self.st.model.update_domain(z_post, train_idx)
 		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
@@ -222,10 +224,17 @@ class ebmTrainer:
 					"latents/z_prior": np.asarray(z_prior),
 				},
 			)
+			ps_histograms = {
+				f"ebm_params/{'/'.join(map(str, path))}": np.asarray(val)
+				for path, val in jax.tree_util.tree_leaves_with_path(
+					nnx.state(self.st.model.ebm, nnx.Param)
+				)
+			}
+			self.writer.write_histograms(train_idx, ps_histograms)
 
 			if self.model_type == "kaem":
 				self.writer.write_images(
-					train_idx, {"kaem_density": self.plot_kaem_component(epoch)}
+					train_idx, {"latents/density": self.plot_kaem_component(epoch)}
 				)
 
 		if self.is_host0:

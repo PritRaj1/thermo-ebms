@@ -8,6 +8,7 @@ class KAEMConfig:
 	mixture: bool = True
 	numquad: int = 25
 	p0_stddev: float = 1.0
+	domain_update_freq: int = 100
 
 
 @dataclass

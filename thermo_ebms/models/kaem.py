@@ -33,8 +33,8 @@ class KAEM(nnx.Module):
 		u_flat = u.reshape(-1)
 		idx = jax.vmap(search_one)(cdf_flat, u_flat).reshape(u.shape)
 
-		min_z = jnp.full((1,) + self.ebm.nodes.shape[1:], self.ebm.domain[0])
-		nodes = jnp.concatenate([min_z, self.ebm.nodes], axis=0)
+		lo = jnp.min(self.ebm.nodes, axis=0, keepdims=True)
+		nodes = jnp.concatenate([lo, self.ebm.nodes], axis=0)
 		grid = jnp.broadcast_to(
 			jnp.reshape(nodes, (1, 1, self.z_dim, self.ebm.numquad + 1)),
 			(u.shape[0], 1, self.z_dim, self.ebm.numquad + 1),
@@ -88,3 +88,11 @@ class KAEM(nnx.Module):
 		self.eval()
 		key = self.ebm.sample_mixture(key, N)
 		return self._fwd(key, N)
+
+	def update_domain(self, z: jax.Array, step: int) -> None:
+		if step % self.ebm.update_every == 0:
+			lo = jnp.min(z, axis=0, keepdims=True)
+			hi = jnp.max(z, axis=0, keepdims=True)
+			nodes, weights = self.ebm.adapt_gauss(lo, hi)
+			self.ebm.nodes[...] = nodes
+			self.ebm.weights[...] = weights
