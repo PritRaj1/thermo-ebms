@@ -7,24 +7,8 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-def morlet_wavelet(
-	z: jax.Array,
-	translation: jax.Array,
-	bandwidth: jax.Array,
-	tau: jax.Array,
-	w_wav: jax.Array,
-	w_base: jax.Array,
-) -> jax.Array:
-	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_wav * (real * envelope) + w_base * nnx.hard_swish(z)
-
-
-class wavKAN(nnx.Module):
-	"""1D Morlet wavelet latent density function"""
-
-	init_domain: tuple = (-3.0, 3.0)
+class chebyKAN(nnx.Module):
+	"""1D Chebyshev polynomial latent density function"""
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
@@ -34,11 +18,8 @@ class wavKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.degree = config.degree
+		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.alpha = nnx.Param(jnp.ones((1, 1, self.Q, P))) if self.mixture else None
@@ -50,12 +31,20 @@ class wavKAN(nnx.Module):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
-		self.update_every = config.domain_update_freq
-		lo = jnp.full((1, 1, 1, self.P), self.init_domain[0])
-		hi = jnp.full((1, 1, 1, self.P), self.init_domain[1])
-		nodes, weights = self.adapt_gauss(lo, hi)
+		nodes, weights = self.gauss()
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
+
+	def chebyshev(
+		self,
+		z: jax.Array,
+		coeff: jax.Array,
+	) -> jax.Array:
+		z = nnx.hard_tanh(z)
+		T = [jnp.ones_like(z), z]
+		for i in range(2, self.degree + 1):
+			T.append(2 * z * T[-1] - T[-2])
+		return jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
 
 	def expand_p(self, x: np.ndarray) -> jax.Array:
 		return jnp.repeat(
@@ -64,14 +53,10 @@ class wavKAN(nnx.Module):
 			axis=1,
 		).reshape(self.numquad, 1, 1, self.P)
 
-	def adapt_gauss(self, lo: jax.Array, hi: jax.Array) -> tuple[jax.Array, jax.Array]:
-		"""Adapt Gauss-Legendre integration domain"""
+	def gauss(self) -> tuple[jax.Array, jax.Array]:
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 		nodes, weights = self.expand_p(nodes), self.expand_p(weights)
-
-		nodes = 0.5 * (hi - lo) * nodes + 0.5 * (lo + hi)
-		weights = weights * 0.5 * (hi - lo)
 		return nodes, weights
 
 	def log_p0(self, z: jax.Array) -> jax.Array:
@@ -108,9 +93,7 @@ class wavKAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return morlet_wavelet(
-			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
-		)
+		return self.chebyshev(z, self.coeff)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -145,13 +128,9 @@ class wavKAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
 		"""
-		translation = self.select_component(self.translation)
-		bandwidth = self.select_component(self.bandwidth)
-		tau = self.select_component(self.tau)
-		w_wav = self.select_component(self.w_wav)
-		w_base = self.select_component(self.w_base)
+		coeff = self.select_component(self.coeff)
 		z = self.select_component(z)
-		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
+		return self.chebyshev(z, coeff)
 
 	def pdf_per_node(self):
 		f = jax.vmap(self.componentwise_f)(
