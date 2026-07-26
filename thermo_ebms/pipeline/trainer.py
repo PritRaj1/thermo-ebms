@@ -193,14 +193,16 @@ class ebmTrainer:
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
-		return loss, grad_norm, key
+		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, grad_norm, key = self.train_step(x, train_idx, subkey)
+			loss, grad_norm, z_prior, z_post, key = self.train_step(
+				x, train_idx, subkey
+			)
 			self.profiler(train_idx)
 
 			train_idx += 1
@@ -213,6 +215,13 @@ class ebmTrainer:
 		if (epoch % self.sample_every == 0) and self.is_host0:
 			x, key = self.st.model(key, self.num_samples)
 			self.writer.write_images(train_idx, {"generated_batch": to_uint8(x)})
+			self.writer.write_histograms(
+				train_idx,
+				{
+					"latents/z_posterior": np.asarray(z_post),
+					"latents/z_prior": np.asarray(z_prior),
+				},
+			)
 
 			if self.model_type == "kaem":
 				self.writer.write_images(
