@@ -120,7 +120,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.min(ebm.nodes[:, :, :, 1]))
+		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.max(ebm.nodes[:, :, :, 0]))
 		z_grid = jnp.linspace(*domain, num=200)
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),

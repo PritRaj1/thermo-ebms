@@ -41,6 +41,7 @@ class wavKAN(nnx.Module):
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
+		self.reg = config.mixture_regularization
 		self.alpha = nnx.Param(jnp.ones((1, 1, self.Q, P))) if self.mixture else None
 		self.component = (
 			nnx.Variable(jnp.arange(self.Q)[None, None, :, None])
@@ -138,7 +139,7 @@ class wavKAN(nnx.Module):
 		if not self.mixture:
 			return self.en(z_post) - self.en(z_prior)
 
-		return -self.en(z_post)
+		return -self.en(z_post) + self.reg * jnp.sum(jnp.abs(self.alpha))
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
 		"""
