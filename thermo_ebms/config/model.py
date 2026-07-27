@@ -9,6 +9,7 @@ class KAEMConfig:
 	numquad: int = 25
 	p0_stddev: float = 1.0
 	degree: int = 3
+	domain_update_freq: int = 100
 	mixture_regularization: float = 0.0001
 
 

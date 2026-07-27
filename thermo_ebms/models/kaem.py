@@ -68,3 +68,9 @@ class KAEM(nnx.Module):
 		self.eval()
 		key = self.ebm.sample_mixture(key, N)
 		return self._fwd(key, N)
+
+	def update_domain(self, z: jax.Array, step: int) -> None:
+		if step % self.ebm.update_every == 0:
+			nodes, weights = self.ebm.gaussleg(z)
+			self.ebm.nodes[...] = nodes
+			self.ebm.weights[...] = weights

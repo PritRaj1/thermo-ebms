@@ -34,7 +34,10 @@ class chebyKAN(nnx.Module):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
-		nodes, weights = self.adapt_gauss()
+		self.update_every = config.domain_update_freq
+		lo = jnp.full((1, 1, 1, self.P), -1.0)
+		hi = jnp.full((1, 1, 1, self.P), 1.0)
+		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
 
@@ -46,7 +49,7 @@ class chebyKAN(nnx.Module):
 		w_base: jax.Array,
 	) -> jax.Array:
 		z_cheby = nnx.tanh(z)
-		T = [jnp.ones_like(z_cheby), nnx.hard_tanh(z_cheby)]
+		T = [jnp.ones_like(z_cheby), z_cheby]
 		for i in range(2, self.degree + 1):
 			T.append(2 * z_cheby * T[-1] - T[-2])
 		cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
@@ -59,11 +62,21 @@ class chebyKAN(nnx.Module):
 			axis=1,
 		).reshape(self.numquad, 1, 1, self.P)
 
-	def adapt_gauss(self) -> tuple[jax.Array, jax.Array]:
+	def adapt_gauss(self, lo: jax.Array, hi: jax.Array) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 		nodes, weights = self.expand_p(nodes), self.expand_p(weights)
+
+		nodes = 0.5 * (hi - lo) * nodes + 0.5 * (lo + hi)
+		weights = weights * 0.5 * (hi - lo)
+		return nodes, weights
+
+	def gaussleg(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
+		mean = jnp.mean(z, axis=0, keepdims=True)
+		std = jnp.std(z, axis=0, keepdims=True)
+		lo, hi = mean - 3 * std, mean + 3 * std
+		nodes, weights = self.adapt_gauss(lo, hi)
 		return nodes, weights
 
 	def log_p0(self, z: jax.Array) -> jax.Array:
@@ -108,8 +121,9 @@ class chebyKAN(nnx.Module):
 			return f.sum()
 
 		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
+		nodes, weights = self.gaussleg(z)
 		Z = jnp.sum(
-			self.weights * jnp.exp(self(self.nodes)),
+			weights * jnp.exp(self(nodes)),
 			axis=0,
 			keepdims=True,
 		)
