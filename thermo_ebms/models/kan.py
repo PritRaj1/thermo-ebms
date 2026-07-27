@@ -7,24 +7,8 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-def morlet_wavelet(
-	z: jax.Array,
-	translation: jax.Array,
-	bandwidth: jax.Array,
-	tau: jax.Array,
-	w_wav: jax.Array,
-	w_base: jax.Array,
-) -> jax.Array:
-	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_wav * (real * envelope) + w_base * nnx.hard_swish(z)
-
-
-class wavKAN(nnx.Module):
-	"""1D Morlet wavelet latent density function"""
-
-	init_domain: tuple = (-3.0, 3.0)
+class chebyKAN(nnx.Module):
+	"""1D Chebyshev polynomial latent density function"""
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
@@ -34,10 +18,9 @@ class wavKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.degree = config.degree
+		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
+		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
@@ -51,12 +34,23 @@ class wavKAN(nnx.Module):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
-		self.update_every = config.domain_update_freq
-		lo = jnp.full((1, 1, 1, self.P), self.init_domain[0])
-		hi = jnp.full((1, 1, 1, self.P), self.init_domain[1])
-		nodes, weights = self.adapt_gauss(lo, hi)
+		nodes, weights = self.adapt_gauss()
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
+
+	def chebyshev(
+		self,
+		z: jax.Array,
+		coeff: jax.Array,
+		w_cheby: jax.Array,
+		w_base: jax.Array,
+	) -> jax.Array:
+		z_cheby = nnx.tanh(z)
+		T = [jnp.ones_like(z_cheby), nnx.hard_tanh(z_cheby)]
+		for i in range(2, self.degree + 1):
+			T.append(2 * z_cheby * T[-1] - T[-2])
+		cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
+		return w_cheby * cheby + w_base * nnx.hard_swish(z)
 
 	def expand_p(self, x: np.ndarray) -> jax.Array:
 		return jnp.repeat(
@@ -65,14 +59,11 @@ class wavKAN(nnx.Module):
 			axis=1,
 		).reshape(self.numquad, 1, 1, self.P)
 
-	def adapt_gauss(self, lo: jax.Array, hi: jax.Array) -> tuple[jax.Array, jax.Array]:
+	def adapt_gauss(self) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
 		nodes, weights = self.expand_p(nodes), self.expand_p(weights)
-
-		nodes = 0.5 * (hi - lo) * nodes + 0.5 * (lo + hi)
-		weights = weights * 0.5 * (hi - lo)
 		return nodes, weights
 
 	def log_p0(self, z: jax.Array) -> jax.Array:
@@ -109,9 +100,7 @@ class wavKAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return morlet_wavelet(
-			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
-		)
+		return self.chebyshev(z, self.coeff, self.w_cheby, self.w_base)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -120,7 +109,7 @@ class wavKAN(nnx.Module):
 
 		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
 		Z = jnp.sum(
-			self.weights * jnp.exp(self(self.nodes) + self.log_p0(self.nodes)),
+			self.weights * jnp.exp(self(self.nodes)),
 			axis=0,
 			keepdims=True,
 		)
@@ -146,16 +135,17 @@ class wavKAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
 		"""
-		translation = self.select_component(self.translation)
-		bandwidth = self.select_component(self.bandwidth)
-		tau = self.select_component(self.tau)
-		w_wav = self.select_component(self.w_wav)
+		coeff = self.select_component(self.coeff)
+		w_cheby = self.select_component(self.w_cheby)
 		w_base = self.select_component(self.w_base)
 		z = self.select_component(z)
-		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
+		return self.chebyshev(z, coeff, w_cheby, w_base)
 
 	def pdf_per_node(self):
+		"""Returns normalized pdf per density"""
 		f = jax.vmap(self.componentwise_f)(
 			jnp.expand_dims(jnp.repeat(self.nodes, self.Q, axis=-2), axis=1)
 		)
-		return self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0(self.nodes))
+		pdf = self.weights * jnp.exp(f.squeeze(axis=2))
+		Z = jnp.sum(pdf, axis=0, keepdims=True)
+		return (pdf * jnp.exp(self.log_p0(self.nodes))) / Z
