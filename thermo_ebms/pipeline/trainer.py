@@ -19,6 +19,8 @@ from .loaders import get_loaders
 from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from ..config import Config
 
+cmap = plt.get_cmap("plasma")
+
 
 def to_uint8(x: jax.Array) -> np.ndarray:
 	x = jax.device_get(x)
@@ -115,24 +117,24 @@ class ebmTrainer:
 			logdir=self.logdir,
 		)
 
-	def plot_kaem_component(self, step: int) -> np.ndarray:
+	def plot_kaem(self, step: int) -> None:
 		model = self.st.model
 		model.eval()
 		ebm = model.ebm
 
-		domain = (-3.0, 3.0)
+		domain = (-1.0, 1.0)
 		z_grid = jnp.linspace(*domain, num=200)
+		sigma = ebm.sigma
+		log_p0 = (
+			-0.5 * (z_grid / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
+		).reshape(-1, 1, 1)
+
 		z = jnp.repeat(
 			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
 			ebm.P,
 			axis=-1,
 		)
-		f = ebm(z)[:, 0, 0, 0]  # Q = 1, P = 1 component
-		log_p0 = (
-			-0.5 * (z_grid / ebm.sigma) ** 2
-			- jnp.log(ebm.sigma)
-			- 0.5 * jnp.log(2.0 * jnp.pi)
-		)
+		f = ebm(z)[:, 0, :, :]
 
 		unnormalized_pdf = jnp.exp(f + log_p0)
 		quad = ebm(
@@ -141,48 +143,58 @@ class ebmTrainer:
 		Z = jnp.sum(
 			ebm.weights * jnp.exp(quad),
 			axis=0,
-			keepdims=True,
-		)[:, 0, 0, 0]
+		)
 		pdf = unnormalized_pdf / Z
-		ref_pdf = (1.0 / jnp.sqrt(2.0 * jnp.pi)) * jnp.exp(-0.5 * z_grid**2)
+		ref_pdf = (1.0 / (sigma * jnp.sqrt(2.0 * jnp.pi))) * jnp.exp(
+			-0.5 * (z_grid / sigma) ** 2
+		)
 
 		z_np = np.asarray(z_grid)
 		pdf_np = np.asarray(pdf)
 		ref_np = np.asarray(ref_pdf)
 
-		fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
-		ax.plot(
-			z_np,
-			ref_np,
-			color="#7f7f7f",
-			linestyle="--",
-			linewidth=3.0,
-			label=r"Ref $\mathcal{N}(0, 1)$",
-		)
-		ax.fill_between(z_np, ref_np, color="#7f7f7f", alpha=0.25, label="_nolegend_")
+		for q_idx in range(4):
+			for p_idx in range(4):
+				pdf = pdf_np[:, q_idx, p_idx]
+				colour = cmap((q_idx * 4 + p_idx) / max(1, 16))
 
-		ax.plot(
-			z_np,
-			pdf_np,
-			color="#1f77b4",
-			linewidth=2.0,
-			label="KAEM Component)",
-		)
-		ax.fill_between(z_np, pdf_np, color="#1f77b4", alpha=0.35, label="_nolegend_")
+				fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
+				ax.plot(
+					z_np,
+					ref_np,
+					color="#7f7f7f",
+					linestyle="--",
+					linewidth=3.0,
+					label=r"Ref $\mathcal{N}(0, 1)$",
+				)
+				ax.fill_between(
+					z_np, ref_np, color="#7f7f7f", alpha=0.25, label="_nolegend_"
+				)
 
-		ax.set_title(f"Density, (Q=1,P=1) (Epoch {step})")
-		ax.set_xlabel("z")
-		ax.set_ylabel("PDF")
-		ax.set_xlim(list(domain))
-		ax.set_ylim(bottom=0.0, top=1.0)
-		ax.grid(True, linestyle=":", alpha=0.6)
-		ax.legend(loc="upper right", frameon=True)
-		fig.tight_layout()
+				ax.plot(
+					z_np,
+					pdf,
+					color=colour,
+					linewidth=2.0,
+					label="Chebyshev density",
+				)
+				ax.fill_between(z_np, pdf, color=colour, alpha=0.35, label="_nolegend_")
 
-		fig.canvas.draw()
-		image_array = np.asarray(fig.canvas.buffer_rgba())[:, :, :3]
-		plt.close(fig)
-		return image_array
+				ax.set_title(f"KAEM Density, (Q={q_idx},P={p_idx}) (Epoch {step})")
+				ax.set_xlabel("z")
+				ax.set_ylabel("PDF")
+				ax.set_xlim(list(domain))
+				ax.set_ylim(bottom=0.0, top=1.0)
+				ax.grid(True, linestyle=":", alpha=0.6)
+				ax.legend(loc="upper right", frameon=True)
+				fig.tight_layout()
+
+				fig.canvas.draw()
+				image_array = np.asarray(fig.canvas.buffer_rgba())[:, :, :3]
+				plt.close(fig)
+				self.writer.write_images(
+					step, {f"latents/density_q{q_idx}_p{p_idx}": image_array}
+				)
 
 	def train_step(
 		self, x: jax.Array, train_idx: int, key: jax.Array
@@ -232,9 +244,7 @@ class ebmTrainer:
 			self.writer.write_histograms(train_idx, ps_histograms)
 
 			if self.model_type == "kaem":
-				self.writer.write_images(
-					train_idx, {"latents/density": self.plot_kaem_component(epoch)}
-				)
+				self.plot_kaem(epoch)
 
 		if self.is_host0:
 			self.ckpt_manager.save(
