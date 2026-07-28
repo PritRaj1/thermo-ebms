@@ -2,7 +2,7 @@ import jax
 from flax import nnx
 import jax.numpy as jnp
 
-from .kan import wavKAN
+from .kan import chebyKAN
 from .gen_cnn import GEN
 from ..config import ModelConfig
 from .sampling import mcmc_sampler
@@ -12,7 +12,7 @@ class KAEM(nnx.Module):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
 		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
-		self.ebm = wavKAN(config.kaem, self.z_dim, rngs)
+		self.ebm = chebyKAN(config.kaem, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
@@ -69,9 +69,3 @@ class KAEM(nnx.Module):
 		self.eval()
 		key = self.ebm.sample_mixture(key, N)
 		return self._fwd(key, N)
-
-	def update_domain(self, z: jax.Array, step: int) -> None:
-		if step % self.ebm.update_every == 0:
-			nodes, weights = self.ebm.gaussleg(z)
-			self.ebm.nodes[...] = nodes
-			self.ebm.weights[...] = weights

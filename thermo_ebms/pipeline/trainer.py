@@ -122,7 +122,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.max(ebm.nodes[:, :, :, 0]))
+		domain = (-3.0, 3.0)
 		z_grid = jnp.linspace(*domain, num=200)
 		sigma = ebm.sigma
 		log_p0 = (
@@ -213,7 +213,6 @@ class ebmTrainer:
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
-		self.st.model.update_domain(z_post, train_idx)
 		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
