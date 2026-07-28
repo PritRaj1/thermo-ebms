@@ -123,7 +123,7 @@ class chebyKAN(nnx.Module):
 		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
 		nodes, weights = self.gaussleg(z)
 		Z = jnp.sum(
-			weights * jnp.exp(self(nodes)),
+			weights * jnp.exp(self(nodes) + self.log_p0(nodes)),
 			axis=0,
 			keepdims=True,
 		)
@@ -160,6 +160,4 @@ class chebyKAN(nnx.Module):
 		f = jax.vmap(self.componentwise_f)(
 			jnp.expand_dims(jnp.repeat(self.nodes, self.Q, axis=-2), axis=1)
 		)
-		pdf = self.weights * jnp.exp(f.squeeze(axis=2))
-		Z = jnp.sum(pdf, axis=0, keepdims=True)
-		return (pdf * jnp.exp(self.log_p0(self.nodes))) / Z
+		return self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0(self.nodes))

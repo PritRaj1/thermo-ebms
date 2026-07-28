@@ -45,6 +45,7 @@ class KAEM(nnx.Module):
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=0)
+		cdf = cdf / cdf[-1, :, :, :]
 
 		key, subkey = jax.random.split(key)
 		u = jax.random.uniform(subkey, shape=(N, 1, self.z_dim, 1))

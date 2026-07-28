@@ -122,7 +122,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (-1.0, 1.0)
+		domain = (jnp.min(ebm.nodes[:, :, :, 0]), jnp.max(ebm.nodes[:, :, :, 0]))
 		z_grid = jnp.linspace(*domain, num=200)
 		sigma = ebm.sigma
 		log_p0 = (
@@ -141,7 +141,7 @@ class ebmTrainer:
 			jnp.repeat(ebm.nodes, ebm.Q, axis=-2),
 		)
 		Z = jnp.sum(
-			ebm.weights * jnp.exp(quad),
+			ebm.weights * jnp.exp(quad + log_p0),
 			axis=0,
 		)
 		pdf = unnormalized_pdf / Z
