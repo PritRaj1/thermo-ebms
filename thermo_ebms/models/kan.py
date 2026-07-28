@@ -119,45 +119,33 @@ class wavKAN(nnx.Module):
 		if not self.mixture:
 			return f.sum()
 
-		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
-		nodes, weights = self.gaussleg(z)
-		Z = jnp.sum(
-			weights * jnp.exp(self(nodes) + self.log_p0(nodes)),
-			axis=0,
-			keepdims=True,
-		)
-
-		return nnx.logsumexp(f - jnp.log(Z), axis=-2).sum()
+		f = f + nnx.log_softmax(self.alpha, axis=-2)
+		return nnx.logsumexp(f, axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		grad_f = jax.grad(self.en)(z)
-		if self.mixture:
-			return grad_f
-
 		return -grad_f - z / (self.sigma**2)
-
-	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
-		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
-		if not self.mixture:
-			return self.en(z_post) - self.en(z_prior)
-
-		return -self.en(z_post) + self.reg * jnp.sum(jnp.abs(self.alpha))
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
 		"""
 		In: (numsamples, 1, Q, P)
-		Out: (numsamples, 1, 1, P) if mixture else (numsamples, 1, Q, P))
+		Out: (num_quad, numsamples, 1, P) if mixture else (numquad, numsamples, Q, P))
 		"""
 		translation = self.select_component(self.translation)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
 		w_wav = self.select_component(self.w_wav)
-		z = self.select_component(z)
 		return morlet_wavelet(z, translation, bandwidth, tau, w_wav)
+
+	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
+		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
+		reg = 0
+		if self.mixture:
+			reg = self.reg * jnp.sum(jnp.abs(self.alpha))
+
+		return self.en(z_post) - self.en(z_prior) + reg
 
 	def pdf_per_node(self):
 		"""Returns normalized pdf per density"""
-		f = jax.vmap(self.componentwise_f)(
-			jnp.expand_dims(jnp.repeat(self.nodes, self.Q, axis=-2), axis=1)
-		)
+		f = jax.vmap(self.componentwise_f)(jnp.expand_dims(self.nodes, axis=1))
 		return self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0(self.nodes))

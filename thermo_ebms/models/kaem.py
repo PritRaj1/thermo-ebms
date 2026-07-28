@@ -71,8 +71,7 @@ class KAEM(nnx.Module):
 		return self._fwd(key, N)
 
 	def update_domain(self, z: jax.Array, step: int) -> None:
-		pass
-		# if step % self.ebm.update_every == 0 and step > 0:
-		#   nodes, weights = self.ebm.gaussleg(z)
-		#   self.ebm.nodes[...] = nodes
-		#   self.ebm.weights[...] = weights
+		if step % self.ebm.update_every == 0:
+			nodes, weights = self.ebm.gaussleg(z)
+			self.ebm.nodes[...] = nodes
+			self.ebm.weights[...] = weights
