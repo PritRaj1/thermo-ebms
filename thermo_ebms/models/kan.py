@@ -35,8 +35,8 @@ class chebyKAN(nnx.Module):
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
 		self.update_every = config.domain_update_freq
-		lo = jnp.full((1, 1, 1, self.P), -1.0)
-		hi = jnp.full((1, 1, 1, self.P), 1.0)
+		lo = jnp.full((1, 1, 1, self.P), -3.0)
+		hi = jnp.full((1, 1, 1, self.P), 3.0)
 		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
