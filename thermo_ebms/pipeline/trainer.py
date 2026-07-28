@@ -153,9 +153,10 @@ class ebmTrainer:
 		pdf_np = np.asarray(pdf)
 		ref_np = np.asarray(ref_pdf)
 
+		images = []
 		for q_idx in range(4):
 			for p_idx in range(4):
-				pdf = pdf_np[:, q_idx, p_idx]
+				pdf_qp = pdf_np[:, q_idx, p_idx]
 				colour = cmap((q_idx * 4 + p_idx) / max(1, 16))
 
 				fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
@@ -173,12 +174,14 @@ class ebmTrainer:
 
 				ax.plot(
 					z_np,
-					pdf,
+					pdf_qp,
 					color=colour,
 					linewidth=2.0,
 					label="Chebyshev density",
 				)
-				ax.fill_between(z_np, pdf, color=colour, alpha=0.35, label="_nolegend_")
+				ax.fill_between(
+					z_np, pdf_qp, color=colour, alpha=0.35, label="_nolegend_"
+				)
 
 				ax.set_title(f"KAEM Density, (Q={q_idx},P={p_idx}) (Epoch {step})")
 				ax.set_xlabel("z")
@@ -190,11 +193,15 @@ class ebmTrainer:
 				fig.tight_layout()
 
 				fig.canvas.draw()
-				image_array = np.asarray(fig.canvas.buffer_rgba())[:, :, :3]
+				images.append(np.asarray(fig.canvas.buffer_rgba())[:, :, :3])
 				plt.close(fig)
-				self.writer.write_images(
-					step, {f"latents/density_q{q_idx}_p{p_idx}": image_array}
-				)
+
+		self.writer.write_images(step, {"latents/densities": np.stack(images, axis=0)})
+
+		if ebm.mixture:
+			z_max = jnp.max(pdf, axis=0).reshape(ebm.Q, 1, 1, ebm.P)
+			img = model.gen(z_max)
+			self.writer.write_images(step, {"images/maxpdf_mixture": to_uint8(img)})
 
 	def train_step(
 		self, x: jax.Array, train_idx: int, key: jax.Array
@@ -228,7 +235,7 @@ class ebmTrainer:
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
 			x, key = self.st.model(key, self.num_samples)
-			self.writer.write_images(train_idx, {"generated_batch": to_uint8(x)})
+			self.writer.write_images(train_idx, {"images/generated": to_uint8(x)})
 			self.writer.write_histograms(
 				train_idx,
 				{

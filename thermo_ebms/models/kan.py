@@ -13,12 +13,11 @@ def morlet_wavelet(
 	bandwidth: jax.Array,
 	tau: jax.Array,
 	w_wav: jax.Array,
-	w_base: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
 	real = jnp.cos(tau * z_scaled)
 	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_wav * (real * envelope) + w_base * nnx.hard_swish(z)
+	return w_wav * (real * envelope)
 
 
 class wavKAN(nnx.Module):
@@ -36,7 +35,6 @@ class wavKAN(nnx.Module):
 		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -114,9 +112,7 @@ class wavKAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return morlet_wavelet(
-			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
-		)
+		return morlet_wavelet(z, self.translation, self.bandwidth, self.tau, self.w_wav)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -156,9 +152,8 @@ class wavKAN(nnx.Module):
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
 		w_wav = self.select_component(self.w_wav)
-		w_base = self.select_component(self.w_base)
 		z = self.select_component(z)
-		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
+		return morlet_wavelet(z, translation, bandwidth, tau, w_wav)
 
 	def pdf_per_node(self):
 		"""Returns normalized pdf per density"""
