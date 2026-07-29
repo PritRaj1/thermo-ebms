@@ -7,8 +7,22 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-class chebyKAN(nnx.Module):
-	"""1D Chebyshev polynomial latent density function"""
+def morlet_wavelet(
+	z: jax.Array,
+	translation: jax.Array,
+	bandwidth: jax.Array,
+	tau: jax.Array,
+	w_wav: jax.Array,
+	w_base: jax.Array,
+) -> jax.Array:
+	z_scaled = (z - translation) / bandwidth
+	real = jnp.cos(tau * z_scaled)
+	envelope = jnp.exp(-(z_scaled**2) / 2)
+	return w_wav * (real * envelope) + w_base * nnx.gelu(z)
+
+
+class wavKAN(nnx.Module):
+	"""1D Morlet wavelet latent density function"""
 
 	domain: tuple[float, float] = (-3.0, 3.0)
 
@@ -20,9 +34,10 @@ class chebyKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.degree = config.degree
-		self.coeff = nnx.Param(rngs.normal((1, self.degree + 1, self.Q, P)))
-		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
@@ -92,48 +107,37 @@ class chebyKAN(nnx.Module):
 
 		return jnp.take_along_axis(x, self.component, axis=-2)
 
-	def chebyshev(
-		self,
-		z: jax.Array,
-		coeff: jax.Array,
-		w_cheby: jax.Array,
-		w_base: jax.Array,
-	) -> jax.Array:
-		z_cheby = nnx.hard_tanh(z)
-		T = [jnp.ones_like(z_cheby), z_cheby]
-		for i in range(2, self.degree + 1):
-			T.append(2 * z_cheby * T[-1] - T[-2])
-
-		cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
-		return w_cheby * cheby + w_base * nnx.gelu(z)
-
 	def __call__(
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return self.chebyshev(z, self.coeff, self.w_cheby, self.w_base)
+		return morlet_wavelet(
+			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
+		)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
 		if not self.mixture:
 			return f.sum()
 
-		f = f - nnx.log_softmax(self.alpha, axis=-2)
+		f = f + nnx.log_softmax(self.alpha, axis=-2)
 		return nnx.logsumexp(f, axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		grad_f = jax.grad(self.en)(z)
-		return -grad_f - z / (self.sigma**2)
+		return grad_f - z / (self.sigma**2)
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
 		"""
 		In: (numsamples, 1, Q, P)
 		Out: (num_quad, numsamples, 1, P) if mixture else (numquad, numsamples, Q, P))
 		"""
-		coeff = self.select_component(self.coeff)
-		w_cheby = self.select_component(self.w_cheby)
+		translation = self.select_component(self.translation)
+		bandwidth = self.select_component(self.bandwidth)
+		tau = self.select_component(self.tau)
+		w_wav = self.select_component(self.w_wav)
 		w_base = self.select_component(self.w_base)
-		return self.chebyshev(z, coeff, w_cheby, w_base)
+		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
@@ -141,7 +145,7 @@ class chebyKAN(nnx.Module):
 		if self.mixture:
 			reg = self.reg * jnp.sum(jnp.abs(self.alpha))
 
-		return self.en(z_post) - self.en(z_prior) + reg
+		return -self.en(z_post) + self.en(z_prior) + reg
 
 	def pdf_per_node(self):
 		"""Returns normalized pdf per density"""

@@ -39,7 +39,6 @@ model:
     mixture: False
     numquad: 25
     p0_stddev: 1.0
-    degree: 5
     mixture_regularization: 0.0001
 
   thermo:
