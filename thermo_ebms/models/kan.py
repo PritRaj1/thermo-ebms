@@ -7,22 +7,21 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-def morlet_wavelet(
+def rbf_kernel(
 	z: jax.Array,
 	translation: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
-	w_wav: jax.Array,
+	w_rbf: jax.Array,
 	w_base: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_wav * (real * envelope) + w_base * nnx.gelu(z)
+	rbf = jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
+	return w_rbf * rbf + w_base * nnx.gelu(z)
 
 
-class wavKAN(nnx.Module):
-	"""1D Morlet wavelet latent density function"""
+class rbfKAN(nnx.Module):
+	"""1D Gaussian RBF latent density function"""
 
 	domain: tuple[float, float] = (-3.0, 3.0)
 
@@ -34,10 +33,11 @@ class wavKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_wav = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		numcentres = config.numcentres
+		self.translation = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.w_rbf = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
@@ -111,8 +111,8 @@ class wavKAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return morlet_wavelet(
-			z, self.translation, self.bandwidth, self.tau, self.w_wav, self.w_base
+		return rbf_kernel(
+			z, self.translation, self.bandwidth, self.tau, self.w_rbf, self.w_base
 		)
 
 	def en(self, z: jax.Array) -> jax.Array:
@@ -120,11 +120,14 @@ class wavKAN(nnx.Module):
 		if not self.mixture:
 			return f.sum()
 
-		f = f + nnx.log_softmax(self.alpha, axis=-2)
+		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
 		return nnx.logsumexp(f, axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		grad_f = jax.grad(self.en)(z)
+		if self.mixture:
+			return grad_f
+
 		return grad_f - z / (self.sigma**2)
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
@@ -135,9 +138,9 @@ class wavKAN(nnx.Module):
 		translation = self.select_component(self.translation)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
-		w_wav = self.select_component(self.w_wav)
+		w_rbf = self.select_component(self.w_rbf)
 		w_base = self.select_component(self.w_base)
-		return morlet_wavelet(z, translation, bandwidth, tau, w_wav, w_base)
+		return rbf_kernel(z, translation, bandwidth, tau, w_rbf, w_base)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
@@ -145,7 +148,7 @@ class wavKAN(nnx.Module):
 		if self.mixture:
 			reg = self.reg * jnp.sum(jnp.abs(self.alpha))
 
-		return -self.en(z_post) + self.en(z_prior) + reg
+		return -self.en(z_post) + self.en(z_prior) + reg * z_prior.shape[0]
 
 	def pdf_per_node(self):
 		"""Returns normalized pdf per density"""

@@ -8,7 +8,7 @@ class KAEMConfig:
 	mixture: bool = True
 	numquad: int = 25
 	p0_stddev: float = 1.0
-	degree: int = 5
+	numcentres: int = 10
 	mixture_regularization: float = 0.0001
 
 
