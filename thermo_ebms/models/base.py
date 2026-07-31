@@ -31,6 +31,9 @@ class neuralEBM(nnx.Module):
 		self.eval()
 		return self._sample_prior(key, N)
 
+	def adapt_domain(self, z: jax.Array) -> None:
+		pass
+
 	@nnx.jit(static_argnames=("N",))
 	def _fwd(self, key: jax.Array, N: int) -> jax.Array:
 		key, subkey = jax.random.split(key)

@@ -45,7 +45,7 @@ class KAEM(nnx.Module):
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=0)
-		cdf = cdf / cdf[-1, :, :, :]
+		cdf = cdf / jnp.maximum(cdf[-1, :, :, :], 1e-12)
 
 		key, subkey = jax.random.split(key)
 		u = jax.random.uniform(subkey, shape=(N, 1, self.z_dim, 1))
@@ -58,6 +58,10 @@ class KAEM(nnx.Module):
 		self.eval()
 		key = self.ebm.sample_mixture(key, N)
 		return self._sample_prior(key, N)
+
+	def adapt_domain(self, z: jax.Array, train_idx: int) -> None:
+		if train_idx % self.ebm.update_every == 0 and train_idx > 0:
+			self.ebm.domain_update(z)
 
 	@nnx.jit(static_argnames=("N",))
 	def _fwd(self, key: jax.Array, N: int) -> jax.Array:
