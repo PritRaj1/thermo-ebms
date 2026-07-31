@@ -2,7 +2,7 @@ import jax
 from flax import nnx
 import jax.numpy as jnp
 
-from .kan import rbfKAN
+from .kan import KAN
 from .gen_cnn import GEN
 from ..config import ModelConfig
 from .sampling import mcmc_sampler
@@ -12,7 +12,7 @@ class KAEM(nnx.Module):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
 		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
-		self.ebm = rbfKAN(config.kaem, self.z_dim, rngs)
+		self.ebm = KAN(config.kaem, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1

@@ -1,6 +1,6 @@
 from .ebm_dense import EBM
 from .gen_cnn import GEN
-from .kan import rbfKAN
+from .kan import KAN
 from .sampling import mcmc_sampler
 from .base import neuralEBM
 from .kaem import KAEM
@@ -10,7 +10,7 @@ from .thermo import thermoEBM, thermoKAEM
 __all__ = [
 	"EBM",
 	"GEN",
-	"rbfKAN",
+	"KAN",
 	"mcmc_sampler",
 	"neuralEBM",
 	"KAEM",

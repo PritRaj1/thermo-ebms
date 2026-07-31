@@ -122,7 +122,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (-3.0, 3.0)
+		domain = ebm.domain
 		z_grid = jnp.linspace(*domain, num=200)
 		sigma = ebm.sigma
 		log_p0 = (

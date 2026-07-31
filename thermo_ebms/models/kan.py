@@ -7,21 +7,22 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
-def rbf_kernel(
+def kernel(
 	z: jax.Array,
 	translation: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
-	w_rbf: jax.Array,
-	w_base: jax.Array,
+	w_kernel: jax.Array,
+	w_act: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
-	rbf = jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
-	return w_rbf * rbf + w_base * nnx.gelu(z)
+	real = jnp.cos(tau * z_scaled)
+	envelope = jnp.exp(-(z_scaled**2) / 2)
+	return w_kernel * (real * envelope) + w_act * nnx.gelu(z)
 
 
-class rbfKAN(nnx.Module):
-	"""1D Gaussian RBF latent density function"""
+class KAN(nnx.Module):
+	"""1D Morlet wavelet latent density function"""
 
 	domain: tuple[float, float] = (-3.0, 3.0)
 
@@ -33,12 +34,11 @@ class rbfKAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		numcentres = config.numcentres
-		self.translation = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.w_rbf = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_kernel = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_act = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -111,8 +111,8 @@ class rbfKAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return rbf_kernel(
-			z, self.translation, self.bandwidth, self.tau, self.w_rbf, self.w_base
+		return kernel(
+			z, self.translation, self.bandwidth, self.tau, self.w_kernel, self.w_act
 		)
 
 	def en(self, z: jax.Array) -> jax.Array:
@@ -138,9 +138,9 @@ class rbfKAN(nnx.Module):
 		translation = self.select_component(self.translation)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
-		w_rbf = self.select_component(self.w_rbf)
-		w_base = self.select_component(self.w_base)
-		return rbf_kernel(z, translation, bandwidth, tau, w_rbf, w_base)
+		w_kernel = self.select_component(self.w_kernel)
+		w_act = self.select_component(self.w_act)
+		return kernel(z, translation, bandwidth, tau, w_kernel, w_act)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
