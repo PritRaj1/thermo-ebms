@@ -177,7 +177,7 @@ class ebmTrainer:
 					pdf_qp,
 					color=colour,
 					linewidth=2.0,
-					label="Chebyshev density",
+					label="KAN density",
 				)
 				ax.fill_between(
 					z_np, pdf_qp, color=colour, alpha=0.35, label="_nolegend_"

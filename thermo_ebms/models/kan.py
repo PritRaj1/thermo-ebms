@@ -13,12 +13,11 @@ def kernel(
 	bandwidth: jax.Array,
 	tau: jax.Array,
 	w_kernel: jax.Array,
-	w_act: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
 	real = jnp.cos(tau * z_scaled)
 	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_kernel * (real * envelope) + w_act * nnx.gelu(z)
+	return w_kernel * (real * envelope)
 
 
 class KAN(nnx.Module):
@@ -38,7 +37,6 @@ class KAN(nnx.Module):
 		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.w_kernel = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_act = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -76,10 +74,9 @@ class KAN(nnx.Module):
 		return nodes, weights
 
 	def domain_update(self, z: jax.Array) -> None:
-		lo = jnp.min(z, axis=0, keepdims=True)
-		hi = jnp.max(z, axis=0, keepdims=True)
-		pad = jnp.maximum(0.05 * (hi - lo), 1e-6)  # Expand 5% around
-		nodes, weights = self.adapt_gauss(lo - pad, hi + pad)
+		mean = jnp.mean(z, axis=0, keepdims=True)
+		std = jnp.std(z, axis=0, keepdims=True)
+		nodes, weights = self.adapt_gauss(mean - std, mean + std)
 		self.nodes[...] = nodes
 		self.weights[...] = weights
 
@@ -117,9 +114,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(
-			z, self.translation, self.bandwidth, self.tau, self.w_kernel, self.w_act
-		)
+		return kernel(z, self.translation, self.bandwidth, self.tau, self.w_kernel)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -145,8 +140,7 @@ class KAN(nnx.Module):
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
 		w_kernel = self.select_component(self.w_kernel)
-		w_act = self.select_component(self.w_act)
-		return kernel(z, translation, bandwidth, tau, w_kernel, w_act)
+		return kernel(z, translation, bandwidth, tau, w_kernel)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
