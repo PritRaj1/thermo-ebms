@@ -1,9 +1,10 @@
+from typing import Any
+
+import grain.python as grain
 import jax
 import numpy as np
-from PIL import Image
-import grain.python as grain
 import tensorflow_datasets as tfds
-from typing import Any
+from PIL import Image
 
 from ..config import TrainingConfig
 

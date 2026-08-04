@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import GENConfig, ConvBlock
+from ..config import ConvBlock, GENConfig
 
 
 class GEN(nnx.Module):

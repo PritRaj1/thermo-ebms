@@ -49,6 +49,9 @@ experiment = [
     "tensorboard>=2.20.0",
     "omegaconf>=2.3.1",
 ]
+modal = [
+    "modal>=1.5.3",
+]
 
 [tool.ruff]
 line-length = 88

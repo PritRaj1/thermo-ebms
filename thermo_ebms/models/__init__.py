@@ -1,21 +1,21 @@
+from .base import neuralEBM
 from .ebm_dense import EBM
 from .gen_cnn import GEN
-from .kan import KAN
-from .sampling import mcmc_sampler
-from .base import neuralEBM
 from .kaem import KAEM
+from .kan import KAN
 from .mle import mleEBM, mleKAEM
+from .sampling import mcmc_sampler
 from .thermo import thermoEBM, thermoKAEM
 
 __all__ = [
 	"EBM",
 	"GEN",
+	"KAEM",
 	"KAN",
 	"mcmc_sampler",
-	"neuralEBM",
-	"KAEM",
 	"mleEBM",
 	"mleKAEM",
+	"neuralEBM",
 	"thermoEBM",
 	"thermoKAEM",
 ]

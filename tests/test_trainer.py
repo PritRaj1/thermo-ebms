@@ -1,10 +1,11 @@
-import jax
 import sys
-from absl import flags
+
+import jax
 import orbax.checkpoint as ocp
+from absl import flags
+from utils import make_config
 
 from thermo_ebms.pipeline import ebmTrainer
-from utils import make_config
 
 
 def test_logdir(tmp_path):

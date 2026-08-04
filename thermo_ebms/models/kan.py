@@ -1,7 +1,7 @@
 import jax
+import jax.numpy as jnp
 import numpy as np
 from flax import nnx
-import jax.numpy as jnp
 from numpy.polynomial.legendre import leggauss
 
 from ..config import KAEMConfig

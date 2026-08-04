@@ -1,23 +1,24 @@
-import h5py
-import yaml
-import jax
 import os
-import numpy as np
-from flax import nnx
-import jax.numpy as jnp
 from pathlib import Path
-import orbax.checkpoint as ocp
-from clu import metric_writers
-from clu import periodic_actions
-import matplotlib.pyplot as plt
-from omegaconf import OmegaConf
-from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
-from jax.experimental.multihost_utils import sync_global_devices
 
-from .opt import coupled_opt
-from .loaders import get_loaders
-from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
+import h5py
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+import orbax.checkpoint as ocp
+import yaml
+from clu import metric_writers, periodic_actions
+from flax import nnx
+from jax.experimental.multihost_utils import sync_global_devices
+from jax.sharding import Mesh, NamedSharding
+from jax.sharding import PartitionSpec as P
+from omegaconf import OmegaConf
+
 from ..config import Config
+from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
+from .loaders import get_loaders
+from .opt import coupled_opt
 
 cmap = plt.get_cmap("plasma")
 

@@ -1,6 +1,7 @@
-import jax
-import hydra
 import sys
+
+import hydra
+import jax
 from absl import flags
 from omegaconf import OmegaConf
 

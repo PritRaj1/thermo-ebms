@@ -1,9 +1,9 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
+from utils import make_config, make_x
 
 from thermo_ebms import thermoEBM
-from utils import make_config, make_x
 
 cfg = make_config()
 x = make_x(batch=5)

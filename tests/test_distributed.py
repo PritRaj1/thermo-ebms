@@ -1,10 +1,10 @@
 import os
 import sys
-import jax
-import pytest
-import orbax.checkpoint as ocp
-from absl import flags
 
+import jax
+import orbax.checkpoint as ocp
+import pytest
+from absl import flags
 from utils import make_config
 
 

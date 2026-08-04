@@ -2,9 +2,9 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from .kaem import KAEM
-from .base import neuralEBM
 from ..config import ThermoConfig
+from .base import neuralEBM
+from .kaem import KAEM
 
 
 def build_pairs(T, offset):

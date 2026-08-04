@@ -1,5 +1,6 @@
-import typer
 from pathlib import Path
+
+import typer
 
 from thermo_ebms.pipeline import UnbiasedMetrics
 

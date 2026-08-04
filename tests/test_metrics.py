@@ -1,10 +1,10 @@
-import yaml
 import h5py
 import numpy as np
+import yaml
 from omegaconf import OmegaConf
+from utils import make_config
 
 from thermo_ebms.pipeline import UnbiasedMetrics
-from utils import make_config
 
 
 def test_metrics(tmp_path):

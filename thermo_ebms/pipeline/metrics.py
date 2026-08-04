@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import h5py
 import numpy as np
+import tensorflow_datasets as tfds
 import yaml
-from tempfile import TemporaryDirectory
 from PIL import Image
 from sklearn.linear_model import LinearRegression
-import tensorflow_datasets as tfds
 from torch_fidelity import calculate_metrics
 
 
@@ -148,7 +148,7 @@ class UnbiasedMetrics:
 			"run_dir": str(self.run_dir),
 			"dataset": str(self.dataset),
 			"num_generated": int(n_gen),
-			"num_real": int(len(real)),
+			"num_real": len(real),
 			"sample_sizes": sample_sizes,
 			"fid_values": fids,
 			"kid_values": kids,

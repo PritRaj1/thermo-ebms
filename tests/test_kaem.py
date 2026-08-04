@@ -1,9 +1,8 @@
 import jax
 from flax import nnx
-
-from thermo_ebms import KAEM
 from utils import make_config
 
+from thermo_ebms import KAEM
 
 config = make_config(z_dim=8)
 

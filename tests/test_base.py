@@ -1,9 +1,8 @@
 import jax
 from flax import nnx
-
-from thermo_ebms import neuralEBM
 from utils import make_config
 
+from thermo_ebms import neuralEBM
 
 cfg = make_config()
 

@@ -1,7 +1,8 @@
-import optax
 from collections.abc import Callable
 
-from ..config import OptConfig, AdamConfig
+import optax
+
+from ..config import AdamConfig, OptConfig
 
 
 def network_opt(config: AdamConfig, updates_per_epoch: int) -> Callable:

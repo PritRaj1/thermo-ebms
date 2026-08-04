@@ -1,9 +1,9 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
+from utils import make_config
 
 from thermo_ebms.pipeline import ebmTrainer
-from utils import make_config
 
 cfg = make_config()
 

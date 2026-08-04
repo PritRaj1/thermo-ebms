@@ -1,11 +1,12 @@
 import os
+
 import jax
-from flax import nnx
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from flax import nnx
+from utils import make_config
 
 from thermo_ebms import neuralEBM
-from utils import make_config
 
 
 @nnx.jit

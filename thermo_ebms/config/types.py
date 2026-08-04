@@ -1,5 +1,6 @@
-import jax
 from typing import Protocol
+
+import jax
 
 
 class ScoreFn(Protocol):

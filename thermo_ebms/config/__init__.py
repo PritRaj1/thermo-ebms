@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 
-from .networks import MCMCConfig, ConvBlock, EBMConfig, GENConfig
-from .types import ScoreFn, XchangeFn
-from .model import ThermoConfig, KAEMConfig, ModelConfig
+from .model import KAEMConfig, ModelConfig, ThermoConfig
+from .networks import ConvBlock, EBMConfig, GENConfig, MCMCConfig
 from .pipeline import (
-	TrainingConfig,
+	AdamConfig,
 	LoggingConfig,
 	MetricsConfig,
-	AdamConfig,
 	OptConfig,
+	TrainingConfig,
 )
+from .types import ScoreFn, XchangeFn
 
 
 @dataclass
@@ -22,17 +22,17 @@ class Config:
 
 
 __all__ = [
+	"AdamConfig",
+	"Config",
+	"ConvBlock",
 	"EBMConfig",
 	"GENConfig",
-	"MCMCConfig",
-	"AdamConfig",
-	"OptConfig",
-	"ConvBlock",
-	"ThermoConfig",
-	"ScoreFn",
-	"XchangeFn",
 	"KAEMConfig",
+	"MCMCConfig",
 	"ModelConfig",
+	"OptConfig",
+	"ScoreFn",
+	"ThermoConfig",
 	"TrainingConfig",
-	"Config",
+	"XchangeFn",
 ]

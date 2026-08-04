@@ -1,8 +1,8 @@
 import jax
-from flax import nnx
 import jax.numpy as jnp
+from flax import nnx
 
-from ..config import MCMCConfig, ThermoConfig, ScoreFn, XchangeFn
+from ..config import MCMCConfig, ScoreFn, ThermoConfig, XchangeFn
 
 
 class mcmc_sampler(nnx.Module):

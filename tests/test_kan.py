@@ -1,9 +1,9 @@
 import jax
-from flax import nnx
 import jax.numpy as jnp
+from flax import nnx
+from utils import make_config
 
 from thermo_ebms.models import KAN
-from utils import make_config
 
 config = make_config()
 P = config.model.z_dim

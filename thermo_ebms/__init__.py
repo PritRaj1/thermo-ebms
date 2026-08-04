@@ -1,3 +1,3 @@
-from .models import neuralEBM, KAEM, mleEBM, mleKAEM, thermoEBM, thermoKAEM
+from .models import KAEM, mleEBM, mleKAEM, neuralEBM, thermoEBM, thermoKAEM
 
-__all__ = ["neuralEBM", "KAEM", "mleEBM", "mleKAEM", "thermoEBM", "thermoKAEM"]
+__all__ = ["KAEM", "mleEBM", "mleKAEM", "neuralEBM", "thermoEBM", "thermoKAEM"]

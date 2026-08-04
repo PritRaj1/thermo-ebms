@@ -1,10 +1,10 @@
 import jax
-from flax import nnx
 import jax.numpy as jnp
+from flax import nnx
 
-from .kan import KAN
-from .gen_cnn import GEN
 from ..config import ModelConfig
+from .gen_cnn import GEN
+from .kan import KAN
 from .sampling import mcmc_sampler
 
 
@@ -66,7 +66,7 @@ class KAEM(nnx.Module):
 	@nnx.jit(static_argnames=("N",))
 	def _fwd(self, key: jax.Array, N: int) -> jax.Array:
 		key, subkey = jax.random.split(key)
-		z = self.sample_prior(key, N)
+		z = self.sample_prior(subkey, N)
 		return self.gen(z), key
 
 	def __call__(self, key: jax.Array, N: int) -> jax.Array:
