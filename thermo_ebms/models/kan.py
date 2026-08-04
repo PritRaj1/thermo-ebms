@@ -72,9 +72,19 @@ class KAN(nnx.Module):
 		return nodes, weights
 
 	def domain_update(self, z: jax.Array) -> None:
-		mean = jnp.mean(z, axis=0, keepdims=True)
-		std = jnp.std(z, axis=0, keepdims=True)
-		nodes, weights = self.adapt_gauss(mean - std, mean + std)
+		z_sorted = jnp.sort(z, axis=0)
+		N = z_sorted.shape[0]
+		n_cov = int(0.99 * N)
+
+		intervals_low = z_sorted[: N - n_cov, :, :, :]
+		intervals_high = z_sorted[n_cov:, :, :, :]
+		widths = intervals_high - intervals_low
+
+		best_idx = jnp.argmin(widths, axis=0, keepdims=True)
+		lo = jnp.take_along_axis(intervals_low, best_idx, axis=0)
+		hi = jnp.take_along_axis(intervals_high, best_idx, axis=0)
+
+		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes[...] = nodes
 		self.weights[...] = weights
 
