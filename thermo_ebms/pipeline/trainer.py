@@ -123,7 +123,7 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (jnp.min(ebm.nodes), jnp.max(ebm.nodes))
+		domain = (-3.0, 3.0)
 		z_grid = jnp.linspace(*domain, num=200)
 		sigma = ebm.sigma
 		log_p0 = (

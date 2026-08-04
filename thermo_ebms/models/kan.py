@@ -14,13 +14,11 @@ def kernel(
 	tau: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return real * envelope
+	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
 class KAN(nnx.Module):
-	"""1D Morlet wavelet latent density function"""
+	"""1D latent density function"""
 
 	init_domain: tuple[float, float] = (-3.0, 3.0)
 
@@ -32,9 +30,18 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		numcentres = config.numcentres
+		centres = jnp.reshape(
+			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
+		)
+		self.translation = nnx.Param(
+			jnp.broadcast_to(
+				centres,
+				(1, numcentres, self.Q, self.P),
+			)
+		)
+		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -74,7 +81,7 @@ class KAN(nnx.Module):
 	def domain_update(self, z: jax.Array) -> None:
 		z_sorted = jnp.sort(z, axis=0)
 		N = z_sorted.shape[0]
-		n_cov = int(0.99 * N)
+		n_cov = int(0.90 * N)
 
 		intervals_low = z_sorted[: N - n_cov, :, :, :]
 		intervals_high = z_sorted[n_cov:, :, :, :]
