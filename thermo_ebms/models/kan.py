@@ -12,12 +12,11 @@ def kernel(
 	translation: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
-	w_kernel: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
 	real = jnp.cos(tau * z_scaled)
 	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return w_kernel * (real * envelope)
+	return real * envelope
 
 
 class KAN(nnx.Module):
@@ -36,7 +35,6 @@ class KAN(nnx.Module):
 		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_kernel = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -114,7 +112,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(z, self.translation, self.bandwidth, self.tau, self.w_kernel)
+		return kernel(z, self.translation, self.bandwidth, self.tau)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -139,8 +137,7 @@ class KAN(nnx.Module):
 		translation = self.select_component(self.translation)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
-		w_kernel = self.select_component(self.w_kernel)
-		return kernel(z, translation, bandwidth, tau, w_kernel)
+		return kernel(z, translation, bandwidth, tau)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""

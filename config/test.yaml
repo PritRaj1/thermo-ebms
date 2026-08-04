@@ -36,7 +36,7 @@ model:
 
 
   kaem:
-    mixture: False
+    mixture: True
     numquad: 25
     p0_stddev: 1.0
     domain_update_freq: 100

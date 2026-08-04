@@ -15,7 +15,7 @@ def ps_change(trainer, x):
 	values_before = jax.tree.map(lambda v: jnp.array(v[...]), state_before)
 	loss_before = trainer.train_step(x, 1, key)[0]
 
-	loss_after, grad_norm, _ = trainer.train_step(x, 1, key)
+	loss_after, grad_norm = trainer.train_step(x, 1, key)[0:2]
 
 	state_after = nnx.state(trainer.st.model, nnx.Param)
 	values_after = jax.tree.map(lambda v: jnp.array(v[...]), state_after)

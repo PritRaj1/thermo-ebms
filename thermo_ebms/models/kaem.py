@@ -29,7 +29,7 @@ class KAEM(nnx.Module):
 		u_flat = u.reshape(-1)
 		grid = jnp.repeat(
 			jnp.reshape(self.ebm.nodes, (1, 1, self.z_dim, self.ebm.numquad)),
-			u.shape[0],
+			u.shape[0] * cdf.shape[1],
 			axis=0,
 		)
 		z = jax.vmap(jnp.interp)(u_flat, cdf_flat, grid.reshape(-1, self.ebm.numquad))
