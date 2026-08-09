@@ -130,7 +130,7 @@ class ebmTrainer:
 		)
 
 		unnormalized_pdf = jnp.exp(ebm(z_grid) + log_p0)
-		pdf = unnormalized_pdf / jnp.sum(unnormalized_pdf, axis=0)
+		pdf = unnormalized_pdf / jnp.sum(unnormalized_pdf, axis=0, keepdims=True)
 		ref_pdf = (1.0 / (sigma * jnp.sqrt(2.0 * jnp.pi))) * jnp.exp(
 			-0.5 * (z_grid / sigma) ** 2
 		)

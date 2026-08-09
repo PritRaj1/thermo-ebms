@@ -11,17 +11,13 @@ from ..config import KAEMConfig
 
 def kernel(
 	z: jax.Array,
-	coeff: jax.Array,
-	w_cheby: jax.Array,
-	w_base: jax.Array,
+	translation: jax.Array,
+	bandwidth: jax.Array,
+	tau: jax.Array,
 ) -> jax.Array:
-	z_cheby = nnx.hard_tanh(z)
-	T = [jnp.ones_like(z_cheby), z_cheby]
-	for i in range(2, coeff.shape[1]):
-		T.append(2 * z_cheby * T[-1] - T[-2])
-
-	cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
-	return w_cheby * cheby + w_base * nnx.gelu(z)
+	z_scaled = (z - translation) / bandwidth
+	rbf = jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
+	return rbf
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -45,10 +41,18 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		degree = config.degree
-		self.coeff = nnx.Param(rngs.normal((1, degree + 1, self.Q, P)))
-		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		numcentres = config.numcentres
+		centres = jnp.reshape(
+			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
+		)
+		self.translation = nnx.Param(
+			jnp.broadcast_to(
+				centres,
+				(1, numcentres, self.Q, self.P),
+			)
+		)
+		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -81,7 +85,7 @@ class KAN(nnx.Module):
 	def domain_update(self, z: jax.Array) -> None:
 		z_sorted = jnp.sort(z, axis=0)
 		N = z_sorted.shape[0]
-		n_cov = int(0.99 * N)
+		n_cov = int(0.8 * N)
 
 		intervals_low = z_sorted[: N - n_cov, :, :, :]
 		intervals_high = z_sorted[n_cov:, :, :, :]
@@ -129,7 +133,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(z, self.coeff, self.w_cheby, self.w_base)
+		return kernel(z, self.translation, self.bandwidth, self.tau)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -151,11 +155,11 @@ class KAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (num_quad, numsamples, 1, P) if mixture else (numquad, numsamples, Q, P))
 		"""
-		coeff = self.select_component(self.coeff)
-		w_cheby = self.select_component(self.w_cheby)
-		w_base = self.select_component(self.w_base)
+		translation = self.select_component(self.translation)
+		bandwidth = self.select_component(self.bandwidth)
+		tau = self.select_component(self.tau)
 		z = self.select_component(z)
-		return kernel(z, coeff, w_cheby, w_base)
+		return kernel(z, translation, bandwidth, tau)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
