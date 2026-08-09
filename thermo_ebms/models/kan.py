@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -9,12 +11,25 @@ from ..config import KAEMConfig
 
 def kernel(
 	z: jax.Array,
-	translation: jax.Array,
-	bandwidth: jax.Array,
-	tau: jax.Array,
+	coeff: jax.Array,
+	w_cheby: jax.Array,
+	w_base: jax.Array,
 ) -> jax.Array:
-	z_scaled = (z - translation) / bandwidth
-	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
+	z_cheby = nnx.hard_tanh(z)
+	T = [jnp.ones_like(z_cheby), z_cheby]
+	for i in range(2, coeff.shape[1]):
+		T.append(2 * z_cheby * T[-1] - T[-2])
+
+	cheby = jnp.sum(coeff * jnp.concat(T, axis=1), axis=1, keepdims=True)
+	return w_cheby * cheby + w_base * nnx.gelu(z)
+
+
+def expand_z(x: np.ndarray) -> jax.Array:
+	return jnp.expand_dims(jnp.array(x), axis=(1, 2, 3))
+
+
+def vmap_component(function: Callable, x: jax.Array) -> jax.Array:
+	return jax.vmap(function)(jnp.expand_dims(x, axis=1)).squeeze(axis=2)
 
 
 class KAN(nnx.Module):
@@ -30,18 +45,10 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		numcentres = config.numcentres
-		centres = jnp.reshape(
-			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
-		)
-		self.translation = nnx.Param(
-			jnp.broadcast_to(
-				centres,
-				(1, numcentres, self.Q, self.P),
-			)
-		)
-		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		degree = config.degree
+		self.coeff = nnx.Param(rngs.normal((1, degree + 1, self.Q, P)))
+		self.w_cheby = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -55,24 +62,17 @@ class KAN(nnx.Module):
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
 		self.update_every = config.domain_update_freq
-		lo = jnp.full((1, 1, 1, self.P), -self.init_domain[0])
-		hi = jnp.full((1, 1, 1, self.P), self.init_domain[1])
+		lo = jnp.full((1, 1, self.Q, self.P), -self.init_domain[0])
+		hi = jnp.full((1, 1, self.Q, self.P), self.init_domain[1])
 		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes = nnx.Variable(nodes)
 		self.weights = nnx.Variable(weights)
-
-	def expand_p(self, x: np.ndarray) -> jax.Array:
-		return jnp.repeat(
-			jnp.expand_dims(jnp.array(x), axis=1),
-			self.P,
-			axis=1,
-		).reshape(self.numquad, 1, 1, self.P)
 
 	def adapt_gauss(self, lo: jax.Array, hi: jax.Array) -> tuple[jax.Array, jax.Array]:
 		"""Adapt Gauss-Legendre integration domain"""
 		nodes, weights = leggauss(self.numquad)
 		nodes, weights = jnp.array(nodes), jnp.array(weights)
-		nodes, weights = self.expand_p(nodes), self.expand_p(weights)
+		nodes, weights = expand_z(nodes), expand_z(weights)
 
 		nodes = 0.5 * (hi - lo) * nodes + 0.5 * (lo + hi)
 		weights = weights * 0.5 * (hi - lo)
@@ -81,7 +81,7 @@ class KAN(nnx.Module):
 	def domain_update(self, z: jax.Array) -> None:
 		z_sorted = jnp.sort(z, axis=0)
 		N = z_sorted.shape[0]
-		n_cov = int(0.90 * N)
+		n_cov = int(0.99 * N)
 
 		intervals_low = z_sorted[: N - n_cov, :, :, :]
 		intervals_high = z_sorted[n_cov:, :, :, :]
@@ -129,7 +129,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(z, self.translation, self.bandwidth, self.tau)
+		return kernel(z, self.coeff, self.w_cheby, self.w_base)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -151,10 +151,11 @@ class KAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (num_quad, numsamples, 1, P) if mixture else (numquad, numsamples, Q, P))
 		"""
-		translation = self.select_component(self.translation)
-		bandwidth = self.select_component(self.bandwidth)
-		tau = self.select_component(self.tau)
-		return kernel(z, translation, bandwidth, tau)
+		coeff = self.select_component(self.coeff)
+		w_cheby = self.select_component(self.w_cheby)
+		w_base = self.select_component(self.w_base)
+		z = self.select_component(z)
+		return kernel(z, coeff, w_cheby, w_base)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
@@ -166,5 +167,7 @@ class KAN(nnx.Module):
 
 	def pdf_per_node(self):
 		"""Returns normalized pdf per density"""
-		f = jax.vmap(self.componentwise_f)(jnp.expand_dims(self.nodes, axis=1))
-		return self.weights * jnp.exp(f.squeeze(axis=2) + self.log_p0(self.nodes))
+		f = vmap_component(self.componentwise_f, self.nodes)
+		z = vmap_component(self.select_component, self.nodes)
+		weights = vmap_component(self.select_component, self.weights)
+		return weights * jnp.exp(f + self.log_p0(z)), z

@@ -123,29 +123,14 @@ class ebmTrainer:
 		model.eval()
 		ebm = model.ebm
 
-		domain = (-3.0, 3.0)
-		z_grid = jnp.linspace(*domain, num=200)
+		z_grid = ebm.nodes
 		sigma = ebm.sigma
 		log_p0 = (
 			-0.5 * (z_grid / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
-		).reshape(-1, 1, 1)
+		)
 
-		z = jnp.repeat(
-			jnp.repeat(jnp.expand_dims(z_grid, axis=(1, 2, 3)), ebm.Q, axis=-2),
-			ebm.P,
-			axis=-1,
-		)
-		f = ebm(z)[:, 0, :, :]
-
-		unnormalized_pdf = jnp.exp(f + log_p0)
-		quad = ebm(
-			jnp.repeat(ebm.nodes, ebm.Q, axis=-2),
-		)
-		Z = jnp.sum(
-			ebm.weights * jnp.exp(quad + log_p0),
-			axis=0,
-		)
-		pdf = unnormalized_pdf / Z
+		unnormalized_pdf = jnp.exp(ebm(z_grid) + log_p0)
+		pdf = unnormalized_pdf / jnp.sum(unnormalized_pdf, axis=0)
 		ref_pdf = (1.0 / (sigma * jnp.sqrt(2.0 * jnp.pi))) * jnp.exp(
 			-0.5 * (z_grid / sigma) ** 2
 		)
@@ -157,37 +142,46 @@ class ebmTrainer:
 		images = []
 		for q_idx in range(4):
 			for p_idx in range(4):
-				pdf_qp = pdf_np[:, q_idx, p_idx]
+				z_qp = z_np[:, 0, q_idx, p_idx]
+				pdf_qp = pdf_np[:, 0, q_idx, p_idx]
+				ref_qp = ref_np[:, 0, q_idx, p_idx]
 				colour = cmap((q_idx * 4 + p_idx) / max(1, 16))
 
 				fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
 				ax.plot(
-					z_np,
-					ref_np,
+					z_qp,
+					ref_qp,
 					color="#7f7f7f",
 					linestyle="--",
 					linewidth=3.0,
 					label=r"Ref $\mathcal{N}(0, 1)$",
 				)
 				ax.fill_between(
-					z_np, ref_np, color="#7f7f7f", alpha=0.25, label="_nolegend_"
+					z_qp,
+					ref_qp,
+					color="#7f7f7f",
+					alpha=0.25,
+					label="_nolegend_",
 				)
 
 				ax.plot(
-					z_np,
+					z_qp,
 					pdf_qp,
 					color=colour,
 					linewidth=2.0,
 					label="KAN density",
 				)
 				ax.fill_between(
-					z_np, pdf_qp, color=colour, alpha=0.35, label="_nolegend_"
+					z_qp,
+					pdf_qp,
+					color=colour,
+					alpha=0.35,
+					label="_nolegend_",
 				)
 
 				ax.set_title(f"KAEM Density, (Q={q_idx},P={p_idx}) (Epoch {step})")
 				ax.set_xlabel("z")
 				ax.set_ylabel("PDF")
-				ax.set_xlim(list(domain))
 				ax.set_ylim(bottom=0.0, top=1.0)
 				ax.grid(True, linestyle=":", alpha=0.6)
 				ax.legend(loc="upper right", frameon=True)
@@ -207,14 +201,14 @@ class ebmTrainer:
 	def train_step(
 		self, x: jax.Array, train_idx: int, key: jax.Array
 	) -> tuple[jax.Array, jax.Array]:
-		key, prior_key, posterior_key = jax.random.split(key, 3)
+		key, prior_key, posterior_key, grid_key = jax.random.split(key, 4)
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_post = self.st.model.sample_posterior(posterior_key, x)
 
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
 		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
-		self.st.model.adapt_domain(z_post, train_idx)
+		self.st.model.adapt_domain(grid_key, z_post, x, train_idx)
 		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:

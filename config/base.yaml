@@ -28,7 +28,7 @@ model:
     mixture: true
     numquad: 100
     p0_stddev: 1.0
-    numcentres: 10
+    degree: 5
     domain_update_freq: 100
     mixture_regularization: 0.0001
 

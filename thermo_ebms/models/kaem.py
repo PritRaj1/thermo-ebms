@@ -23,21 +23,17 @@ class KAEM(nnx.Module):
 		z0 = jax.random.normal(subkey, (N, 1, inner_dim, self.z_dim)) * self.ebm.sigma
 		return z0, key
 
-	def invert_cdf(self, u: jax.Array, cdf: jax.Array) -> jax.Array:
-		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, 1, P, G)"""
+	def invert_cdf(self, u: jax.Array, cdf: jax.Array, grid: jax.Array) -> jax.Array:
+		"""Batched inversion; u: (N, Q, P, 1), cdf: (1, Q, P, G) or (N, 1, P, G), grid: (1, Q, P, G) or (N, 1, P, G)"""
 		cdf_flat = cdf.reshape(-1, self.ebm.numquad)
 		u_flat = u.reshape(-1)
-		grid = jnp.repeat(
-			jnp.reshape(self.ebm.nodes, (1, 1, self.z_dim, self.ebm.numquad)),
-			u.shape[0] * cdf.shape[1],
-			axis=0,
-		)
-		z = jax.vmap(jnp.interp)(u_flat, cdf_flat, grid.reshape(-1, self.ebm.numquad))
+		grid_flat = grid.reshape(-1, self.ebm.numquad)
+		z = jax.vmap(jnp.interp)(u_flat, cdf_flat, grid_flat)
 		return z.reshape(u.shape[0], 1, -1, self.ebm.P)
 
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		"""Inverse transform sampling from p_α(z) ∝ exp(f(z)) ⋅ π(Z)"""
-		pdf = self.ebm.pdf_per_node()
+		pdf, grid = self.ebm.pdf_per_node()
 
 		# Must broadcast num_samples if univariate. Mixture handles through component
 		if not self.ebm.mixture:
@@ -52,15 +48,28 @@ class KAEM(nnx.Module):
 		if not self.ebm.mixture:
 			u = jnp.repeat(u, self.ebm.Q, axis=1)
 
-		return self.invert_cdf(u, cdf.transpose(1, 2, 3, 0))
+		return self.invert_cdf(u, cdf.transpose(1, 2, 3, 0), grid.transpose(1, 2, 3, 0))
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		key = self.ebm.sample_mixture(key, N)
 		return self._sample_prior(key, N)
 
-	def adapt_domain(self, z: jax.Array, train_idx: int) -> None:
+	@nnx.jit
+	def _posterior(self, key: jax.Array, z0: jax.Array, x: jax.Array) -> jax.Array:
+		def score(z: jax.Array) -> jax.Array:
+			return self.gen.llhood_score(z, x) + self.ebm.prior_score(z)
+
+		return self.posterior_sampler(key, score, z0)
+
+	def adapt_domain(
+		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
+	) -> None:
 		if train_idx % self.ebm.update_every == 0 and train_idx > 0:
+			if self.ebm.mixture:
+				z = jnp.repeat(z, self.ebm.Q, axis=-2)
+				z = self._posterior(key, z, x)
+
 			self.ebm.domain_update(z)
 
 	@nnx.jit(static_argnames=("N",))

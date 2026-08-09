@@ -47,7 +47,7 @@ def test_mcmc_plot():
 
 	os.makedirs("debug_plots", exist_ok=True)
 
-	fig, (ax, ax1) = plt.subplots(1, 2, figsize=(15, 6))
+	_fig, (ax, ax1) = plt.subplots(1, 2, figsize=(15, 6))
 
 	z = z.reshape(z.shape[0], -1)
 	ax.plot(z[:, 0])
