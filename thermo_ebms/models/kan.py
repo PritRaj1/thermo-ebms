@@ -16,8 +16,9 @@ def kernel(
 	tau: jax.Array,
 ) -> jax.Array:
 	z_scaled = (z - translation) / bandwidth
-	rbf = jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
-	return rbf
+	real = jnp.cos(tau * z_scaled)
+	envelope = jnp.exp(-(z_scaled**2) / 2)
+	return real * envelope
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -41,18 +42,9 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		numcentres = config.numcentres
-		centres = jnp.reshape(
-			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
-		)
-		self.translation = nnx.Param(
-			jnp.broadcast_to(
-				centres,
-				(1, numcentres, self.Q, self.P),
-			)
-		)
-		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
