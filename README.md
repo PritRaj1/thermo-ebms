@@ -34,12 +34,12 @@ You can watch the prior get sculpted to data using tensorboard:
 ```bash
 tensorboard --logdir=runs # launch tensorboard
 ```
+
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b901429f-ee86-4fee-a485-f5bce18df0bc" width="50%" />
+  <img src="https://github.com/user-attachments/assets/a3c22f0e-34a6-4441-a686-df56b7620ee5" width="50%" />
   <br>
   <em>Tensorboard early into KAEM training on CelebA</em>
 </p>
-
 
 ## GPU rental
 
