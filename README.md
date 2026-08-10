@@ -65,6 +65,6 @@ However, the MEng report is old a has some technical inaccuracies!
 
 I've learned a lot since undergrad, and the implementation in this package reflects the updated stats of my newer work KAEM [(summarised here)](https://pritraj1.github.io/portfolio/kaem.html), which offers several major corrections in the learning gradient and TI derivations.
 
-In KAEM, TI and annealing are presented as an interpretable, more parallelisable alternative to diffusion modeling to improve mixing in EBMs, ([explained here](https://pritraj1.github.io/portfolio/defaults.html)).
+In KAEM, TI and annealing are presented as an structure-preserving, more parallelisable alternative to diffusion modeling to improve mixing in EBMs, ([explained here](https://pritraj1.github.io/portfolio/defaults.html)).
 
 A [Julia sister repo](https://github.com/thezettascale/KAEM) has also been implemented, which could be faster for single-device training due to its use of [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) and [EnzymeMLIR](https://github.com/EnzymeAD/enzyme). Enzyme is also available for jax via [Enzyme-JAX](https://github.com/EnzymeAD/Enzyme-JAX), however it's still experimental and not yet suited to deep learning. This repository hosts the multi-device alternative, using grain and data parallelism.
