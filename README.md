@@ -20,7 +20,6 @@ Training:
 ```python
 python main.py model=thermo_kaem training=celeba # single train job
 python runner.py # multiple jobs
-tensorboard --logdir=runs # launch tensorboard
 ```
 
 Unbiased image metrics:
@@ -29,6 +28,18 @@ Unbiased image metrics:
 python eval.py run runs/thermo_kaem_cifar10 # single trained model
 python eval.py all-runs runs/ # for all generated samples in folder
 ```
+
+You can watch the prior get sculpted to data using tensorboard:
+
+```bash
+tensorboard --logdir=runs # launch tensorboard
+```
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b901429f-ee86-4fee-a485-f5bce18df0bc" width="50%" />
+  <br>
+  <em>Tensorboard early into KAEM training on CelebA</em>
+</p>
+
 
 ## GPU rental
 
