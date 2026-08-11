@@ -32,7 +32,9 @@ class Thermo:
 			z_t.reshape(x.shape[0] * self.num_temps, *z_t.shape[2:])
 		).reshape(self.num_temps, x.shape[0], *x.shape[1:])
 
-		return -((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4))
+		return -((jnp.expand_dims(x, axis=0) - x_gen) ** 2).sum(axis=(2, 3, 4)) / (
+			2 * self.sigma**2
+		)
 
 	def _adapt_temps(self, progress: jnp.float32 = 0.0) -> jax.Array:
 		"""Power law temeprature scheduling with exponent adaption"""
