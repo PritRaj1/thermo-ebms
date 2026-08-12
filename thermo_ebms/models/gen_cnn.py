@@ -77,7 +77,7 @@ class GEN(nnx.Module):
 
 	def loss(self, x: jax.Array, z_post: jax.Array) -> jax.Array:
 		"""Gaussian/pixel loss"""
-		return ((x - self(z_post)) ** 2).sum() / (2 * self.sigma**2)
+		return ((x - self(z_post)) ** 2).sum()
 
 	def llhood_score(
 		self,
@@ -88,7 +88,7 @@ class GEN(nnx.Module):
 		"""∇_z log p(x|z) ∝ - ∇_z ||x - g(z)||^2 / (2σ^2)"""
 
 		def wrapped_ll(z_i: jax.Array) -> jax.Array:
-			return t * self.loss(x, z_i)
+			return t * self.loss(x, z_i) / (2 * self.sigma**2)
 
 		grad_ll = jax.grad(wrapped_ll)(z)
 		return -grad_ll

@@ -22,7 +22,7 @@ model:
     groupnorm: False
     mcmc:
       stepsize: 0.01
-      numsteps: 40
+      numsteps: 20
 
   kaem:
     mixture: true
@@ -35,7 +35,7 @@ optim:
   gen:
     lr_init: 1e-4
     lr_end: 5e-5
-    lr_decay: 0.998
+    lr_decay: 0.999
     beta1: 0.999
     beta2: 0.5
     decay_begin: 0
@@ -43,7 +43,7 @@ optim:
   ebm:
     lr_init: 2e-5
     lr_end: 1e-5
-    lr_decay: 0.998
+    lr_decay: 0.999
     beta1: 0.999
     beta2: 0.5
     decay_begin: 0
@@ -51,7 +51,7 @@ optim:
   kaem:
     lr_init: 2e-5
     lr_end: 1e-5
-    lr_decay: 0.998
+    lr_decay: 0.999
     beta1: 0.999
     beta2: 0.5
     decay_begin: 0
