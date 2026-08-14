@@ -272,6 +272,10 @@ class ebmTrainer:
 		self.writer.flush()
 		sync_global_devices("post_training_sync")
 
+		if self.is_host0 and (self.st.model_type == "kaem"):
+			lut = self.st.model.make_lut()
+			np.save(self.logdir / "inv_cdf_lut.npy", lut)
+
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
 				x, key = self.st.model(key, self.final_bsize)

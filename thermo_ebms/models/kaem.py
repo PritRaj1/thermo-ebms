@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 from flax import nnx
 
 from ..config import ModelConfig
@@ -71,6 +72,27 @@ class KAEM(nnx.Module):
 				z = self._posterior(key, z, x)
 
 			self.ebm.domain_update()
+
+	def make_lut(self, lut_size=256) -> np.ndarray:
+		"""Returns numpy array for HLS LUT"""
+		u = jnp.broadcast_to(
+			jnp.expand_dims(jnp.linspace(0.0, 1.0, lut_size), (1, 2, 3)),
+			(lut_size, 1, self.ebm.Q, self.ebm.P),
+		)
+
+		z_grid = self.ebm.nodes
+		sigma = self.ebm.sigma
+		log_p0 = (
+			-0.5 * (z_grid / sigma) ** 2 - jnp.log(sigma) - 0.5 * jnp.log(2.0 * jnp.pi)
+		)
+
+		pdf = self.ebm.weights * jnp.exp(self.ebm(z_grid) + log_p0)
+		cdf = jnp.cumsum(pdf, axis=0)
+		cdf = cdf / jnp.maximum(cdf[-1, :, :, :], 1e-12)
+		lut = self.invert_cdf(
+			u, cdf.transpose(1, 2, 3, 0), z_grid.transpose(1, 2, 3, 0)
+		)
+		return np.asarray(lut.reshape(self.ebm.Q, self.ebm.P, lut_size))
 
 	@nnx.jit(static_argnames=("N",))
 	def _fwd(self, key: jax.Array, N: int) -> jax.Array:
