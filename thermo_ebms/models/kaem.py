@@ -70,7 +70,7 @@ class KAEM(nnx.Module):
 				z = jnp.repeat(z, self.ebm.Q, axis=-2)
 				z = self._posterior(key, z, x)
 
-			self.ebm.domain_update(z)
+			self.ebm.domain_update()
 
 	@nnx.jit(static_argnames=("N",))
 	def _fwd(self, key: jax.Array, N: int) -> jax.Array:

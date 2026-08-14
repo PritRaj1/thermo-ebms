@@ -11,14 +11,13 @@ from ..config import KAEMConfig
 
 def kernel(
 	z: jax.Array,
-	translation: jax.Array,
+	centres: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
 ) -> jax.Array:
-	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return real * envelope
+	z_scaled = (z - centres) / bandwidth
+	jnp.cos(tau * z_scaled)
+	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -42,9 +41,18 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		numcentres = config.numcentres
+		centres = jnp.reshape(
+			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
+		)
+		self.centres = nnx.Param(
+			jnp.broadcast_to(
+				centres,
+				(1, numcentres, self.Q, self.P),
+			)
+		)
+		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -74,19 +82,9 @@ class KAN(nnx.Module):
 		weights = weights * 0.5 * (hi - lo)
 		return nodes, weights
 
-	def domain_update(self, z: jax.Array) -> None:
-		z_sorted = jnp.sort(z, axis=0)
-		N = z_sorted.shape[0]
-		n_cov = int(0.8 * N)
-
-		intervals_low = z_sorted[: N - n_cov, :, :, :]
-		intervals_high = z_sorted[n_cov:, :, :, :]
-		widths = intervals_high - intervals_low
-
-		best_idx = jnp.argmin(widths, axis=0, keepdims=True)
-		lo = jnp.take_along_axis(intervals_low, best_idx, axis=0)
-		hi = jnp.take_along_axis(intervals_high, best_idx, axis=0)
-
+	def domain_update(self) -> None:
+		lo = jnp.min(self.centres, axis=1, keepdims=True)
+		hi = jnp.max(self.centres, axis=1, keepdims=True)
 		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes[...] = nodes
 		self.weights[...] = weights
@@ -125,7 +123,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(z, self.translation, self.bandwidth, self.tau)
+		return kernel(z, self.centres, self.bandwidth, self.tau)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -147,11 +145,11 @@ class KAN(nnx.Module):
 		In: (numsamples, 1, Q, P)
 		Out: (num_quad, numsamples, 1, P) if mixture else (numquad, numsamples, Q, P))
 		"""
-		translation = self.select_component(self.translation)
+		centres = self.select_component(self.centres)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
 		z = self.select_component(z)
-		return kernel(z, translation, bandwidth, tau)
+		return kernel(z, centres, bandwidth, tau)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
