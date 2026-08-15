@@ -77,7 +77,7 @@ class KAN(nnx.Module):
 	def domain_update(self, z: jax.Array) -> None:
 		z_sorted = jnp.sort(z, axis=0)
 		N = z_sorted.shape[0]
-		n_cov = int(0.95 * N)
+		n_cov = int(0.75 * N)
 
 		intervals_low = z_sorted[: N - n_cov, :, :, :]
 		intervals_high = z_sorted[n_cov:, :, :, :]
@@ -132,14 +132,11 @@ class KAN(nnx.Module):
 		if not self.mixture:
 			return f.sum()
 
-		f = f + nnx.log_softmax(self.alpha, axis=-2) + self.log_p0(z)
+		f = f + nnx.log_softmax(self.alpha, axis=-2)
 		return nnx.logsumexp(f, axis=-2).sum()
 
 	def prior_score(self, z: jax.Array) -> jax.Array:
 		grad_f = jax.grad(self.en)(z)
-		if self.mixture:
-			return grad_f
-
 		return grad_f - z / (self.sigma**2)
 
 	def componentwise_f(self, z: jax.Array) -> jax.Array:
