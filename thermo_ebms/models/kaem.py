@@ -71,7 +71,7 @@ class KAEM(nnx.Module):
 				z = jnp.repeat(z, self.ebm.Q, axis=-2)
 				z = self._posterior(key, z, x)
 
-			self.ebm.domain_update()
+			self.ebm.domain_update(z)
 
 	def make_lut(self, lut_size=256) -> np.ndarray:
 		"""Returns numpy array for HLS LUT"""
