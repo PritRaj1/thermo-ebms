@@ -52,6 +52,9 @@ experiment = [
 modal = [
     "modal>=1.5.3",
 ]
+onnx = [
+    "jax2onnx>=0.13.0",
+]
 
 [tool.ruff]
 line-length = 88
