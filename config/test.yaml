@@ -41,6 +41,7 @@ model:
     p0_stddev: 1.0
     numcentres: 10
     domain_update_freq: 100
+    domain_update_coverage: 0.8
     mixture_regularization: 0.0001
 
   thermo:
