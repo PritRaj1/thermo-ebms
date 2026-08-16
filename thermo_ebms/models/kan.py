@@ -9,18 +9,27 @@ from numpy.polynomial.legendre import leggauss
 from ..config import KAEMConfig
 
 
+# def kernel(
+#   z: jax.Array,
+#   centres: jax.Array,
+#   bandwidth: jax.Array,
+#   tau: jax.Array,
+# ) -> jax.Array:
+#   z_scaled = (z - centres) / bandwidth
+#   jnp.cos(tau * z_scaled)
+#   return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
+#
 def kernel(
 	z: jax.Array,
-	centres: jax.Array,
+	translation: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
-	w_kernel: jax.Array,
-	w_base: jax.Array,
 ) -> jax.Array:
-	z_scaled = (z - centres) / bandwidth
-	jnp.cos(tau * z_scaled)
-	rbf = jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
-	return w_kernel * rbf + w_base * nnx.hard_tanh(z)
+	"""Morlet wavelet kernel"""
+	z_scaled = (z - translation) / bandwidth
+	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
+	envelope = jnp.exp(-(z_scaled**2) / 2)
+	return real * envelope
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -44,20 +53,22 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		numcentres = config.numcentres
-		centres = jnp.reshape(
-			jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
-		)
-		self.centres = nnx.Param(
-			jnp.broadcast_to(
-				centres,
-				(1, numcentres, self.Q, self.P),
-			)
-		)
-		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-		self.w_kernel = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.w_base = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		# numcentres = config.numcentres
+		# centres = jnp.reshape(
+		#   jnp.linspace(*self.init_domain, num=numcentres), (1, numcentres, 1, 1)
+		# )
+		# self.centres = nnx.Param(
+		#   jnp.broadcast_to(
+		#       centres,
+		#       (1, numcentres, self.Q, self.P),
+		#   )
+		# )
+		# self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+		# self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
+
+		self.centres = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -70,7 +81,7 @@ class KAN(nnx.Module):
 
 		# Gauss–Legendre quadrature for Inverse Transform
 		self.numquad = config.numquad
-		lo = jnp.full((1, 1, self.Q, self.P), -self.init_domain[0])
+		lo = jnp.full((1, 1, self.Q, self.P), self.init_domain[0])
 		hi = jnp.full((1, 1, self.Q, self.P), self.init_domain[1])
 		nodes, weights = self.adapt_gauss(lo, hi)
 		self.nodes = nnx.Variable(nodes)
@@ -141,9 +152,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(
-			z, self.centres, self.bandwidth, self.tau, self.w_kernel, self.w_base
-		)
+		return kernel(z, self.centres, self.bandwidth, self.tau)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -165,10 +174,8 @@ class KAN(nnx.Module):
 		centres = self.select_component(self.centres)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
-		w_kernel = self.select_component(self.w_kernel)
-		w_base = self.select_component(self.w_base)
 		z = self.select_component(z)
-		return kernel(z, centres, bandwidth, tau, w_kernel, w_base)
+		return kernel(z, centres, bandwidth, tau)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
