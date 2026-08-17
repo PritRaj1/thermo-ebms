@@ -36,7 +36,7 @@ tensorboard --logdir=runs # launch tensorboard
 ```
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/a3c22f0e-34a6-4441-a686-df56b7620ee5" width="50%" />
+  <img src="https://github.com/user-attachments/assets/8add89e6-9f0a-4918-a286-b22be7b14a23" width="50%" />
   <br>
   <em>Tensorboard early into KAEM training on CelebA</em>
 </p>
