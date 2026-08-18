@@ -78,7 +78,7 @@ class KAEM(nnx.Module):
 		"""Returns numpy array for HLS LUT"""
 		u = jnp.broadcast_to(
 			jnp.expand_dims(jnp.linspace(0.0, 1.0, lut_size), (1, 2, 3)),
-			(lut_size, 1, self.ebm.Q, self.ebm.P),
+			(lut_size, self.ebm.Q, self.ebm.P, 1),
 		)
 
 		z_grid = self.ebm.nodes
@@ -90,6 +90,8 @@ class KAEM(nnx.Module):
 		pdf = self.ebm.weights * jnp.exp(self.ebm(z_grid) + log_p0)
 		cdf = jnp.cumsum(pdf, axis=0)
 		cdf = cdf / jnp.maximum(cdf[-1, :, :, :], 1e-12)
+		cdf = jnp.repeat(cdf, lut_size, axis=1)
+		z_grid = jnp.repeat(z_grid, lut_size, axis=1)
 		lut = self.invert_cdf(
 			u, cdf.transpose(1, 2, 3, 0), z_grid.transpose(1, 2, 3, 0)
 		)

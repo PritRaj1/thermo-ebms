@@ -283,7 +283,7 @@ class ebmTrainer:
 			if self.model_type == "kaem" and (not self.st.model.ebm.mixture):
 				inner_dim = self.st.model.ebm.Q
 
-			latent_shape = (1, 1, inner_dim, self.st.model.z_dim)
+			latent_shape = ("B", 1, inner_dim, self.st.model.z_dim)
 			to_onnx(
 				self.st.model.gen,
 				[latent_shape],
