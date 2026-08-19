@@ -276,23 +276,23 @@ class ebmTrainer:
 			lut = self.st.model.make_lut()
 			np.save(self.logdir / "inv_cdf_lut.npy", lut)
 
-		try:
-			from jax2onnx import to_onnx
+			try:
+				from jax2onnx import to_onnx
 
-			inner_dim = 1
-			if self.model_type == "kaem" and (not self.st.model.ebm.mixture):
-				inner_dim = self.st.model.ebm.Q
+				inner_dim = 1
+				if self.model_type == "kaem" and (not self.st.model.ebm.mixture):
+					inner_dim = self.st.model.ebm.Q
 
-			latent_shape = ("B", 1, inner_dim, self.st.model.z_dim)
-			to_onnx(
-				self.st.model.gen,
-				[latent_shape],
-				return_mode="file",
-				output_path=str(self.logdir / "generator.onnx"),
-			)
-			print("Saved generator.onnx")
-		except ImportError:
-			print("ONNX export requires jax2onnx:  `uv sync --extras hls`")
+				latent_shape = ("B", 1, inner_dim, self.st.model.z_dim)
+				to_onnx(
+					self.st.model.gen,
+					[latent_shape],
+					return_mode="file",
+					output_path=str(self.logdir / "generator.onnx"),
+				)
+				print("Saved generator.onnx")
+			except ImportError:
+				print("ONNX export requires jax2onnx:  `uv sync --extras hls`")
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
