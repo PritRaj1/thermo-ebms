@@ -6,11 +6,11 @@ from ..config import ConvBlock, GENConfig
 
 
 class GEN(nnx.Module):
-	half_prec = jnp.bfloat16
 	full_prec = jnp.float32
 
 	def __init__(self, config: GENConfig, z_dim: int, rngs: nnx.Rngs):
 		self.sigma = config.gaussian_stddev
+		self.half_prec = jnp.bfloat16 if config.mixed_precision else jnp.float32
 
 		def act(x):
 			return nnx.leaky_relu(x, negative_slope=config.leakyrelu_leak)
@@ -71,7 +71,9 @@ class GEN(nnx.Module):
 		self.g = nnx.Sequential(*layers)
 
 	def __call__(self, z: jax.Array) -> jax.Array:
-		z = z.sum(axis=-2, keepdims=True)
+		if z.shape[-2] >= 1:
+			z = z.sum(axis=-2, keepdims=True)
+
 		z = z.astype(self.half_prec)
 		return self.g(z).astype(self.full_prec)
 

@@ -28,6 +28,7 @@ class ConvBlock:
 @dataclass
 class GENConfig:
 	img_channels: int = 3
+	mixed_precision: bool = True
 	gaussian_stddev: float = 0.3
 	leakyrelu_leak: float = 0.2
 	groupnorm: bool = False

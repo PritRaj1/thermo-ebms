@@ -272,7 +272,7 @@ class ebmTrainer:
 		self.writer.flush()
 		sync_global_devices("post_training_sync")
 
-		if self.is_host0 and (self.model_type == "kaem"):
+		if self.is_host0 and (self.model_type == "kaem") and self.st.model.ebm.mixture:
 			lut = self.st.model.make_lut()
 			np.save(self.logdir / "inv_cdf_lut.npy", lut)
 
@@ -284,13 +284,18 @@ class ebmTrainer:
 					inner_dim = self.st.model.ebm.Q
 
 				latent_shape = ("B", 1, inner_dim, self.st.model.z_dim)
+				gen = self.st.model.gen
+				og_half = gen.half_prec
+				gen.half_prec = jnp.float32
 				to_onnx(
-					self.st.model.gen,
+					gen,
 					[latent_shape],
 					return_mode="file",
 					output_path=str(self.logdir / "generator.onnx"),
 				)
 				print("Saved generator.onnx")
+				gen.half_prec = og_half
+
 			except ImportError:
 				print("ONNX export requires jax2onnx:  `uv sync --extras hls`")
 
