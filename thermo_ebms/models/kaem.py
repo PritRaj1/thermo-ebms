@@ -14,7 +14,7 @@ class KAEM(nnx.Module):
 		self.z_dim = config.z_dim
 		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
 		self.ebm = KAN(config.kaem, self.z_dim, rngs)
-		self.gen = GEN(config.gen, self.z_dim, rngs)
+		self.gen = GEN(config.gen, self.z_dim, rngs, sum_latent=not self.ebm.mixture)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
 
