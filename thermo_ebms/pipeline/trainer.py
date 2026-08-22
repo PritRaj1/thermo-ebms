@@ -272,32 +272,21 @@ class ebmTrainer:
 		self.writer.flush()
 		sync_global_devices("post_training_sync")
 
-		if self.is_host0 and (self.model_type == "kaem") and self.st.model.ebm.mixture:
-			lut = self.st.model.make_lut()
-			np.save(self.logdir / "inv_cdf_lut.npy", lut)
+		if self.is_host0:
+			final_step = self.num_epochs * self.updates_per_epoch
+			self.ckpt_manager.save(
+				final_step,
+				args=ocp.args.StandardSave(
+					{
+						"train_state": self.st,
+						"rng": key,
+						"step": final_step,
+					}
+				),
+				force=True,
+			)
 
-			try:
-				from jax2onnx import to_onnx
-
-				inner_dim = 1
-				if self.model_type == "kaem" and (not self.st.model.ebm.mixture):
-					inner_dim = self.st.model.ebm.Q
-
-				latent_shape = ("B", 1, inner_dim, self.st.model.z_dim)
-				gen = self.st.model.gen
-				og_half = gen.half_prec
-				gen.half_prec = jnp.float32
-				to_onnx(
-					gen,
-					[latent_shape],
-					return_mode="file",
-					output_path=str(self.logdir / "generator.onnx"),
-				)
-				print("Saved generator.onnx")
-				gen.half_prec = og_half
-
-			except ImportError:
-				print("ONNX export requires jax2onnx:  `uv sync --extras hls`")
+		self.ckpt_manager.wait_until_finished()
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:

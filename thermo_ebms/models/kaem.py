@@ -66,13 +66,12 @@ class KAEM(nnx.Module):
 	def adapt_domain(
 		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
 	) -> None:
-		pass
-		# if train_idx % self.ebm.update_every == 0 and train_idx > 0:
-		#     if self.ebm.mixture:
-		#         z = jnp.repeat(z, self.ebm.Q, axis=-2)
-		#         z = self._posterior(key, z, x)
-		#
-		#     self.ebm.domain_update(z)
+		if train_idx % self.ebm.update_every == 0 and train_idx > 0:
+			if self.ebm.mixture:
+				z = jnp.repeat(z, self.ebm.Q, axis=-2)
+				z = self._posterior(key, z, x)
+
+			self.ebm.domain_update(z)
 
 	def make_lut(self, lut_size=256) -> np.ndarray:
 		"""Returns numpy array for HLS LUT"""
