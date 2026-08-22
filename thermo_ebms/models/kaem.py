@@ -57,11 +57,18 @@ class KAEM(nnx.Module):
 		return self._sample_prior(key, N)
 
 	@nnx.jit
-	def _posterior(self, key: jax.Array, z0: jax.Array, x: jax.Array) -> jax.Array:
-		def score(z: jax.Array) -> jax.Array:
-			return self.gen.llhood_score(z, x) + self.ebm.prior_score(z)
+	def _mix_posterior(self, key: jax.Array, z0: jax.Array, x: jax.Array) -> jax.Array:
+		def ll_score(z: jax.Array) -> jax.Array:
+			z = jnp.expand_dims(z, axis=-2)
+			return self.gen.llhood_score(z, x)
 
-		return self.posterior_sampler(key, score, z0)
+		def score_q(z: jax.Array) -> jax.Array:
+			return (
+				self.ebm.prior_score(z)
+				+ jax.vmap(ll_score, in_axes=-2, out_axes=-2)(z).sum()
+			)
+
+		return self.posterior_sampler(key, score_q, z0)
 
 	def adapt_domain(
 		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
@@ -69,7 +76,7 @@ class KAEM(nnx.Module):
 		if train_idx % self.ebm.update_every == 0 and train_idx > 0:
 			if self.ebm.mixture:
 				z = jnp.repeat(z, self.ebm.Q, axis=-2)
-				z = self._posterior(key, z, x)
+				z = self._mix_posterior(key, z, x)
 
 			self.ebm.domain_update(z)
 

@@ -16,7 +16,7 @@ model:
       numsteps: 60
 
   gen:
-    mixed_precision: false
+    mixed_precision: true
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.01
     img_channels: 3

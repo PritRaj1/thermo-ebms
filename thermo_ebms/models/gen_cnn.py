@@ -27,7 +27,7 @@ class GEN(nnx.Module):
 				in_features=cin,
 				out_features=block.channels,
 				kernel_size=(block.kernel_size, block.kernel_size),
-				strides=(block.stride, block.stride),
+				strides=block.stride,
 				padding=block.padding,
 				rngs=rngs,
 				param_dtype=self.full_prec,
