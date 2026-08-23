@@ -256,7 +256,7 @@ class ebmTrainer:
 				train_idx,
 				args=ocp.args.StandardSave(
 					{
-						"train_state": self.st,
+						"train_state": nnx.state(self.st),
 						"rng": key,
 						"step": train_idx,
 					}
@@ -278,7 +278,7 @@ class ebmTrainer:
 				final_step,
 				args=ocp.args.StandardSave(
 					{
-						"train_state": self.st,
+						"train_state": nnx.state(self.st),
 						"rng": key,
 						"step": final_step,
 					}
@@ -287,6 +287,10 @@ class ebmTrainer:
 			)
 
 		self.ckpt_manager.wait_until_finished()
+
+		if self.is_host0 and (self.model_type == "kaem") and self.st.model.ebm.mixture:
+			lut = self.st.model.make_lut()
+			np.save(self.logdir / "inv_cdf_lut.npy", lut)
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
