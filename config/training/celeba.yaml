@@ -1,6 +1,6 @@
 dataset: celeb_a
-epochs: 5
-global_batch_size: 128
+epochs: 100
+global_batch_size: 64
 image_res: 64
 
 model_overrides:

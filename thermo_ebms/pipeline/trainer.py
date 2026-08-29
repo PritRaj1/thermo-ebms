@@ -291,6 +291,8 @@ class ebmTrainer:
 		if self.is_host0 and (self.model_type == "kaem") and self.st.model.ebm.mixture:
 			lut = self.st.model.make_lut()
 			np.save(self.logdir / "inv_cdf_lut.npy", lut)
+			alpha = np.asarray(self.st.model.ebm.alpha.squeeze())
+			np.save(self.logdir / "mixture_alpha.npy", alpha)
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
