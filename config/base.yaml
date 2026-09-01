@@ -29,7 +29,7 @@ model:
     mixture: true
     numquad: 100
     p0_stddev: 1.0
-    numcentres: 10
+    numcentres: 20
     domain_update_freq: 100
     domain_update_coverage: 0.9
     mixture_regularization: 0.0001
@@ -37,29 +37,22 @@ model:
 optim:
   gen:
     lr_init: 1e-4
-    lr_end: 5e-5
-    lr_decay: 0.999
+    lr_end: 1e-5
+    weight_decay: 1e-4
     beta1: 0.999
-    beta2: 0.5
-    decay_begin: 0
-    decay_step: 0
+    beta2: 0.9
   ebm:
     lr_init: 2e-5
-    lr_end: 1e-5
-    lr_decay: 0.999
+    lr_end: 2e-6
+    weight_decay: 1e-5
     beta1: 0.999
-    beta2: 0.5
-    decay_begin: 0
-    decay_step: 0
+    beta2: 0.9
   kaem:
     lr_init: 2e-5
-    lr_end: 1e-5
-    lr_decay: 0.999
+    lr_end: 2e-6
+    weight_decay: 1e-5
     beta1: 0.999
-    beta2: 0.5
-    decay_begin: 0
-    decay_step: 0
-
+    beta2: 0.9
 
 run_name: ${model.base}_${training.dataset}
 

@@ -2,22 +2,22 @@ from collections.abc import Callable
 
 import optax
 
-from ..config import AdamConfig, OptConfig
+from ..config import AdamWConfig, OptConfig
 
 
-def network_opt(config: AdamConfig, updates_per_epoch: int) -> Callable:
-	step = config.decay_step * updates_per_epoch
-	begin = config.decay_begin * updates_per_epoch
-
-	schedule = optax.exponential_decay(
+def network_opt(config: AdamWConfig, total_steps: int) -> Callable:
+	schedule = optax.cosine_decay_schedule(
 		init_value=config.lr_init,
-		transition_steps=step,
-		decay_rate=config.lr_decay,
-		transition_begin=begin,
-		end_value=config.lr_end,
+		decay_steps=total_steps,
+		alpha=config.lr_end / config.lr_init,
 	)
 
-	return optax.adam(schedule, config.beta1, config.beta2)
+	return optax.adamw(
+		learning_rate=schedule,
+		b1=config.beta1,
+		b2=config.beta2,
+		weight_decay=config.weight_decay,
+	)
 
 
 def label_fn(path: tuple) -> str:
@@ -31,14 +31,14 @@ def label_fn(path: tuple) -> str:
 
 def coupled_opt(
 	config: OptConfig,
-	updates_per_epoch: int,
+	total_steps: int,
 ):
 
 	return optax.multi_transform(
 		{
-			"ebm": network_opt(config.ebm, updates_per_epoch),
-			"gen": network_opt(config.gen, updates_per_epoch),
-			"kan": network_opt(config.kaem, updates_per_epoch),
+			"ebm": network_opt(config.ebm, total_steps),
+			"gen": network_opt(config.gen, total_steps),
+			"kan": network_opt(config.kaem, total_steps),
 		},
 		label_fn,
 	)

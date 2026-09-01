@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from .model import KAEMConfig, ModelConfig, ThermoConfig
 from .networks import ConvBlock, EBMConfig, GENConfig, MCMCConfig
 from .pipeline import (
-	AdamConfig,
+	AdamWConfig,
 	LoggingConfig,
 	MetricsConfig,
 	OptConfig,
@@ -22,7 +22,7 @@ class Config:
 
 
 __all__ = [
-	"AdamConfig",
+	"AdamWConfig",
 	"Config",
 	"ConvBlock",
 	"EBMConfig",

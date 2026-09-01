@@ -73,14 +73,14 @@ class ebmTrainer:
 		)
 
 		key_init = jax.random.key(config.model.seed)
+		self.num_epochs = config.training.epochs
 
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
 			model = model_cls(config.model, key)
-			tx = coupled_opt(config.optim, self.updates_per_epoch)
+			tx = coupled_opt(config.optim, self.updates_per_epoch * self.num_epochs)
 			self.st = nnx.ModelAndOptimizer(model, tx, wrt=nnx.Param)
 
-		self.num_epochs = config.training.epochs
 		self.final_samples = config.unbiased_metrics.num_samples
 		self.final_bsize = (
 			config.unbiased_metrics.batch_size_to_generate // jax.process_count()

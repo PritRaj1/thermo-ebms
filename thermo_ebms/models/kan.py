@@ -17,7 +17,6 @@ def kernel(
 ) -> jax.Array:
 	"""Gaussian RBF latent density"""
 	z_scaled = (z - centres) / bandwidth
-	jnp.cos(tau * z_scaled)
 	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
