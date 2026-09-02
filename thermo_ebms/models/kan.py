@@ -21,16 +21,16 @@ def kernel(
 
 
 # def kernel(
-#   z: jax.Array,
-#   translation: jax.Array,
-#   bandwidth: jax.Array,
-#   tau: jax.Array,
+# 	z: jax.Array,
+# 	translation: jax.Array,
+# 	bandwidth: jax.Array,
+# 	tau: jax.Array,
 # ) -> jax.Array:
-#   """Morlet wavelet kernel"""
-#   z_scaled = (z - translation) / bandwidth
-#   real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
-#   envelope = jnp.exp(-(z_scaled**2) / 2)
-#   return real * envelope
+# 	"""Morlet wavelet kernel"""
+# 	z_scaled = (z - translation) / bandwidth
+# 	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
+# 	envelope = jnp.exp(-(z_scaled**2) / 2)
+# 	return real * envelope
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
