@@ -1,5 +1,11 @@
 import os
-import sys
+
+os.environ["JAX_PLATFORMS"] = "cpu"
+
+_original_xla_flags = os.environ.get("XLA_FLAGS", "")
+_virtual_device_flag = "--xla_force_host_platform_device_count=4"
+if _virtual_device_flag not in _original_xla_flags:
+	os.environ["XLA_FLAGS"] = f"{_original_xla_flags} {_virtual_device_flag}".strip()
 
 import jax
 import orbax.checkpoint as ocp
@@ -7,45 +13,30 @@ import pytest
 from absl import flags
 from utils import make_config
 
+from thermo_ebms.pipeline import ebmTrainer
+
 
 @pytest.fixture(scope="function")
 def virtual_cluster():
-	"""Emulate 4 devices"""
-	original_flags = os.environ.get("XLA_FLAGS", "")
-	os.environ["XLA_FLAGS"] = (
-		f"{original_flags} --xla_force_host_platform_device_count=4".strip()
+	"""Emulate a 4-device CPU cluster on a single host."""
+
+	assert jax.default_backend() == "cpu", (
+		f"Expected CPU backend, got {jax.default_backend()!r}"
 	)
 
-	jax.config.update("jax_platforms", "cpu")
+	assert jax.device_count() == 4, (
+		f"Expected 4 virtual CPU devices, got {jax.device_count()}"
+	)
+
 	yield
 
-	if original_flags:
-		os.environ["XLA_FLAGS"] = original_flags
-	else:
-		del os.environ["XLA_FLAGS"]
 
+def test_run_multinode(tmp_path, virtual_cluster):
+	"""Run training job across 4 virtual JAX CPUs."""
 
-def pytest_addoption(parser):
-	parser.addoption(
-		"--run-slow",
-		action="store_true",
-		default=False,
-		help="Run slow tests",
-	)
-
-
-@pytest.fixture
-def run_slow(request):
-	if not request.config.getoption("--run-slow"):
-		pytest.skip("Skipping slow test (use --run-slow)")
-
-
-def test_run_multinode(tmp_path, virtual_cluster, run_slow):
-	assert jax.device_count() == 4, "4-node cluster emulation failed."
-
-	# parse flags to satisfy grain_enable_multiprocess_worker_profiling
+	# Parse Abseil flags so Grain can safely access.
 	if not flags.FLAGS.is_parsed():
-		flags.FLAGS(sys.argv, known_only=True)
+		flags.FLAGS(["pytest"], known_only=True)
 
 	cfg = make_config()
 	key = jax.random.key(0)
@@ -54,25 +45,25 @@ def test_run_multinode(tmp_path, virtual_cluster, run_slow):
 	cfg.logging.logdir = str(tmp_path / "logs")
 	cfg.logging.ckpt_dir = str(tmp_path / "ckpt")
 
-	from thermo_ebms.pipeline import ebmTrainer
-
-	# Run cpu
-	with jax.disable_jit():
-		trainer = ebmTrainer(cfg)
-		trainer.run(key)
+	trainer = ebmTrainer(cfg)
+	trainer.run(key)
 
 	logdir = tmp_path / "logs"
-	assert logdir.exists()
-	assert (logdir / "config_copy.yaml").exists()
+	assert logdir.exists(), "Log directory was not created."
+	assert (logdir / "config_copy.yaml").exists(), "Configuration copy was not written."
 
 	ckpt_dir = tmp_path / "ckpt"
-	assert ckpt_dir.exists()
-	assert any(ckpt_dir.iterdir()), "No checkpoints were written"
-
-	h5_file = logdir / "generated_samples.h5"
-	assert h5_file.exists(), "HDF5 samples file not created"
+	assert ckpt_dir.exists(), "Checkpoint directory was not created."
+	assert any(ckpt_dir.iterdir()), "No checkpoints were written."
 
 	mngr = ocp.CheckpointManager(str(ckpt_dir))
-	latest_step = mngr.latest_step()
-	assert latest_step is not None
-	assert latest_step > 0
+
+	try:
+		latest_step = mngr.latest_step()
+		assert latest_step is not None, "No checkpoint step was found."
+		assert latest_step > 0, "Training did not advance beyond step 0."
+	finally:
+		mngr.close()
+
+	h5_file = logdir / "generated_samples.h5"
+	assert h5_file.exists(), "HDF5 samples file was not created."

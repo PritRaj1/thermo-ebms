@@ -20,9 +20,9 @@ model:
     gaussian_stddev: 0.3
     leakyrelu_leak: 0.01
     img_channels: 3
-    groupnorm: False
+    groupnorm: false
     mcmc:
-      stepsize: 0.005
+      stepsize: 0.01
       numsteps: 40
 
   kaem:
@@ -31,7 +31,7 @@ model:
     p0_stddev: 1.0
     numcentres: 20
     domain_update_freq: 100
-    domain_update_coverage: 0.9
+    domain_update_coverage: 0.99
     mixture_regularization: 0.0001
 
 optim:

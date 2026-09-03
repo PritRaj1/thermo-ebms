@@ -1,5 +1,5 @@
 model:
-  z_dim: 21
+  z_dim: 81
   seed: 0
   base: kaem
 
@@ -37,7 +37,7 @@ model:
 
 
   kaem:
-    mixture: False
+    mixture: false
     numquad: 25
     p0_stddev: 1.0
     numcentres: 10

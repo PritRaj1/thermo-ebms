@@ -11,7 +11,7 @@ import yaml
 from clu import metric_writers, periodic_actions
 from flax import nnx
 from jax.experimental.multihost_utils import sync_global_devices
-from jax.sharding import Mesh, NamedSharding
+from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from omegaconf import OmegaConf
 
@@ -45,10 +45,10 @@ def update(
 ) -> tuple[jax.Array, jax.Array]:
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
 	state.update(grads)
-	grads_flat = jnp.concatenate(
-		[g.flatten() for g in jax.tree_util.tree_leaves(grads)]
+	grad_norm = jnp.sqrt(
+		sum(jnp.sum(jnp.square(g)) for g in jax.tree_util.tree_leaves(grads))
 	)
-	return loss, jnp.linalg.norm(grads_flat)
+	return loss, grad_norm
 
 
 class ebmTrainer:
@@ -65,9 +65,10 @@ class ebmTrainer:
 		}[(self.model_type, config.model.thermo.num_temps > 1)]
 
 		# Distributed data parallel sharding
-		self.mesh = Mesh(jax.devices(), axis_names=("data",))
+		self.mesh = jax.make_mesh((jax.device_count(),), ("data",))
 		nnx.use_eager_sharding(True)
 		self.batch_sharding = NamedSharding(self.mesh, P("data", None, None, None))
+
 		self.train_loader, self.updates_per_epoch = get_loaders(
 			config.training, config.model.seed
 		)
@@ -82,10 +83,7 @@ class ebmTrainer:
 			self.st = nnx.ModelAndOptimizer(model, tx, wrt=nnx.Param)
 
 		self.final_samples = config.unbiased_metrics.num_samples
-		self.final_bsize = (
-			config.unbiased_metrics.batch_size_to_generate // jax.process_count()
-		)
-
+		self.final_bsize = config.unbiased_metrics.batch_size_to_generate
 		ckpt_every = config.logging.ckpt_every * self.updates_per_epoch
 		self.sample_every = config.logging.sample_every
 		self.num_samples = config.logging.num_samples
@@ -209,8 +207,12 @@ class ebmTrainer:
 
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
-		self.st.model.adapt_temps(train_idx, self.updates_per_epoch * self.num_epochs)
-		self.st.model.adapt_domain(grid_key, z_post, x, train_idx)
+		with jax.set_mesh(self.mesh):
+			self.st.model.adapt_temps(
+				train_idx, self.updates_per_epoch * self.num_epochs
+			)
+			self.st.model.adapt_domain(grid_key, z_post, x, train_idx)
+
 		return loss, grad_norm, z_prior, z_post, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
@@ -231,7 +233,8 @@ class ebmTrainer:
 				self.progress(train_idx)
 
 		if (epoch % self.sample_every == 0) and self.is_host0:
-			x, key = self.st.model(key, self.num_samples)
+			sample_key = jax.random.fold_in(key, train_idx)
+			x, _ = self.st.model(sample_key, self.num_samples)
 			self.writer.write_images(train_idx, {"images/generated": to_uint8(x)})
 			self.writer.write_histograms(
 				train_idx,
@@ -251,17 +254,16 @@ class ebmTrainer:
 			if self.model_type == "kaem":
 				self.plot_kaem(epoch)
 
-		if self.is_host0:
-			self.ckpt_manager.save(
-				train_idx,
-				args=ocp.args.StandardSave(
-					{
-						"train_state": nnx.state(self.st),
-						"rng": key,
-						"step": train_idx,
-					}
-				),
-			)
+		self.ckpt_manager.save(
+			train_idx,
+			args=ocp.args.StandardSave(
+				{
+					"train_state": nnx.state(self.st),
+					"rng": key,
+					"step": train_idx,
+				}
+			),
+		)
 
 		return key
 
@@ -272,8 +274,8 @@ class ebmTrainer:
 		self.writer.flush()
 		sync_global_devices("post_training_sync")
 
-		if self.is_host0:
-			final_step = self.num_epochs * self.updates_per_epoch
+		final_step = self.num_epochs * self.updates_per_epoch
+		if self.ckpt_manager.latest_step() != final_step:
 			self.ckpt_manager.save(
 				final_step,
 				args=ocp.args.StandardSave(
@@ -296,7 +298,8 @@ class ebmTrainer:
 
 		if self.is_host0:
 			with h5py.File(self.logdir / "generated_samples.h5", "w") as f:
-				x, key = self.st.model(key, self.final_bsize)
+				sample_key = jax.random.fold_in(key, self.final_samples)
+				x, _ = self.st.model(sample_key, self.final_bsize)
 
 				dataset = f.create_dataset(
 					"samples",

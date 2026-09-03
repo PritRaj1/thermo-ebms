@@ -2,7 +2,7 @@ import jax
 from hydra import compose, initialize
 
 
-def make_config(z_dim=8, num_temps=4):
+def make_config(z_dim=81, num_temps=4):
 	with initialize(config_path="../config", version_base=None):
 		cfg = compose(
 			config_name="test",

@@ -39,6 +39,7 @@ class KAEM(nnx.Module):
 		# Must broadcast num_samples if univariate. Mixture handles through component
 		if not self.ebm.mixture:
 			pdf = jnp.repeat(pdf, N, axis=1)
+			grid = jnp.repeat(grid, N, axis=1)
 
 		# Cumulative density via Gauss-Legendre integral
 		cdf = jnp.cumsum(pdf, axis=0)

@@ -20,19 +20,6 @@ def kernel(
 	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
-# def kernel(
-# 	z: jax.Array,
-# 	translation: jax.Array,
-# 	bandwidth: jax.Array,
-# 	tau: jax.Array,
-# ) -> jax.Array:
-# 	"""Morlet wavelet kernel"""
-# 	z_scaled = (z - translation) / bandwidth
-# 	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
-# 	envelope = jnp.exp(-(z_scaled**2) / 2)
-# 	return real * envelope
-
-
 def expand_z(x: np.ndarray) -> jax.Array:
 	return jnp.expand_dims(jnp.array(x), axis=(1, 2, 3))
 
@@ -66,10 +53,6 @@ class KAN(nnx.Module):
 		)
 		self.bandwidth = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
 		self.tau = nnx.Param(rngs.normal((1, numcentres, self.Q, P)))
-
-		# self.centres = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		# self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		# self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
