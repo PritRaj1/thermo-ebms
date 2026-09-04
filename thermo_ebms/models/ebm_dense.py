@@ -50,7 +50,9 @@ class EBM(nnx.Module):
 	def en(self, z: jax.Array) -> jax.Array:
 		return self(z).sum()
 
-	def prior_score(self, z: jax.Array) -> jax.Array:
+	def prior_score(
+		self, z: jax.Array, minibatch: jax.Array | None = None
+	) -> jax.Array:
 		"""∇_z log(p_α(z)) ∝ ∇_z f(z) - z / σ^2"""
 		grad_f = jax.grad(self.en)(z)
 		return grad_f - z / (self.sigma**2)

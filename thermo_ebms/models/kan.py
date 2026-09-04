@@ -146,7 +146,7 @@ class KAN(nnx.Module):
 		f = f + nnx.log_softmax(self.alpha, axis=-2)
 		return nnx.logsumexp(f, axis=-2).sum()
 
-	def prior_score(self, z: jax.Array) -> jax.Array:
+	def prior_score(self, z: jax.Array, x: jax.Array | None = None) -> jax.Array:
 		grad_f = jax.grad(self.en)(z)
 		return grad_f - z / (self.sigma**2)
 

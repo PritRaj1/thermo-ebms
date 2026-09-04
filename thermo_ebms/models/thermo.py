@@ -2,9 +2,10 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import ThermoConfig
+from ..config import MCMCConfig, ThermoConfig
 from .base import neuralEBM
 from .kaem import KAEM
+from .sampling import mcmc_sampler
 
 
 def build_pairs(T, offset):
@@ -13,8 +14,16 @@ def build_pairs(T, offset):
 
 
 class Thermo:
-	def init_schedule(self, config: ThermoConfig):
-		"""Init temperature power law schedule"""
+	def thermo_score(self, z: jax.Array, minibatch: jax.Array) -> jax.Array:
+		def powerpost_score(z_t: jax.Array, t_k: jax.Array) -> jax.Array:
+			return self.gen.llhood_score(z_t, minibatch, t=t_k) + self.ebm.prior_score(
+				z_t,
+			)
+
+		return jax.vmap(powerpost_score, in_axes=(0, 0))(z, self.temps)
+
+	def thermo_setup(self, mcmc_config: MCMCConfig, config: ThermoConfig):
+		"""Init temperature power law schedule and population sampling"""
 		num_temps = config.num_temps
 		self.num_temps = num_temps if (num_temps % 2 == 0) else num_temps - 1
 		self.cycles = config.annealing_cycle
@@ -25,6 +34,10 @@ class Thermo:
 		# DEO exchange
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
+
+		self.posterior_sampler = mcmc_sampler(
+			self.thermo_score, mcmc_config, xchange_conf=config
+		)
 
 	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
 		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""
@@ -75,19 +88,12 @@ class Thermo:
 	@nnx.jit
 	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 
-		def thermo_score(z: jax.Array) -> jax.Array:
-
-			def score(z_t: jax.Array, t_k: jax.Array) -> jax.Array:
-				return self.gen.llhood_score(z_t, x, t=t_k) + self.ebm.prior_score(z_t)
-
-			return jax.vmap(score, in_axes=(0, 0))(z, self.temps)
-
 		def xchange(key_i: jax.Array, z: jax.Array, idx: jax.Array) -> jax.Array:
 			return self.replica_xchange(key_i, z, idx, x)
 
 		z0, key = self.mcmc_init(key, x.shape[0] * self.num_temps)
 		z0 = z0.reshape(self.num_temps, x.shape[0], *z0.shape[1:])
-		return self.posterior_sampler(key, thermo_score, z0, xchange_func=xchange)
+		return self.posterior_sampler(key, z0, x=x, xchange_func=xchange)
 
 	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
 		self.eval()
@@ -112,10 +118,10 @@ class Thermo:
 class thermoEBM(Thermo, neuralEBM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.init_schedule(config.thermo)
+		self.thermo_setup(config.gen.mcmc, config.thermo)
 
 
 class thermoKAEM(Thermo, KAEM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.init_schedule(config.thermo)
+		self.thermo_setup(config.gen.mcmc, config.thermo)

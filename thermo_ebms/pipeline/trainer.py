@@ -211,7 +211,7 @@ class ebmTrainer:
 			self.st.model.adapt_temps(
 				train_idx, self.updates_per_epoch * self.num_epochs
 			)
-			self.st.model.adapt_domain(grid_key, z_post, x, train_idx)
+			self.st.model.adapt_domain(grid_key, z_post, train_idx)
 
 		return loss, grad_norm, z_prior, z_post, key
 

@@ -1,3 +1,4 @@
+import blackjax
 import jax
 import jax.numpy as jnp
 from flax import nnx
@@ -6,9 +7,15 @@ from ..config import MCMCConfig, ScoreFn, ThermoConfig, XchangeFn
 
 
 class mcmc_sampler(nnx.Module):
-	def __init__(self, config: MCMCConfig, xchange_conf: ThermoConfig | None = None):
+	def __init__(
+		self,
+		score: ScoreFn,
+		config: MCMCConfig,
+		xchange_conf: ThermoConfig | None = None,
+	):
 		self.eta = config.stepsize
 		self.run_iters = config.numsteps
+		self.kernel = blackjax.sgld(score)
 		self.xchange_every = -1
 
 		if xchange_conf is not None:
@@ -19,8 +26,8 @@ class mcmc_sampler(nnx.Module):
 	def __call__(
 		self,
 		key: jax.Array,
-		score: ScoreFn,
 		z0: jax.Array,
+		x: jax.Array | None = None,
 		xchange_func: XchangeFn | None = None,
 	):
 		xchange_bool = (self.xchange_every > 0) and (xchange_func is not None)
@@ -29,9 +36,7 @@ class mcmc_sampler(nnx.Module):
 		def step(carry, idx):
 			z, newkey = carry
 			newkey, subkey = jax.random.split(newkey)
-			eps = jax.random.normal(subkey, z.shape)
-
-			z = z + self.eta * score(z) + jnp.sqrt(2 * self.eta) * eps
+			z = self.kernel.step(subkey, z, x, self.eta)
 
 			if xchange_bool:
 

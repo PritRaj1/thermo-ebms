@@ -28,7 +28,7 @@ def test_shape_mixture():
 	model.sample_mixture(key, 10)
 
 	Q = 1 if config.model.kaem.mixture else 2 * P + 1
-	y = model.pdf_per_node()
+	y = model.pdf_per_node()[0]
 
 	assert y.shape == (model.numquad, 10, Q, P)
 

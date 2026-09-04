@@ -10,12 +10,11 @@ from .sampling import mcmc_sampler
 class neuralEBM(nnx.Module):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
-		self.prior_sampler = mcmc_sampler(config.ebm.mcmc)
-		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
+		self.prior_sampler = mcmc_sampler(self.ebm.prior_score, config.ebm.mcmc)
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -25,15 +24,13 @@ class neuralEBM(nnx.Module):
 	@nnx.jit(static_argnames=("N",))
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		z0, key = self.mcmc_init(key, N)
-		return self.prior_sampler(key, self.ebm.prior_score, z0)
+		return self.prior_sampler(key, z0)
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()
 		return self._sample_prior(key, N)
 
-	def adapt_domain(
-		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
-	) -> None:
+	def adapt_domain(self, key: jax.Array, z: jax.Array, train_idx: int) -> None:
 		pass
 
 	@nnx.jit(static_argnames=("N",))

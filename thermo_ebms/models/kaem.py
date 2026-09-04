@@ -12,11 +12,11 @@ from .sampling import mcmc_sampler
 class KAEM(nnx.Module):
 	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
-		self.posterior_sampler = mcmc_sampler(config.gen.mcmc, config.thermo)
 		self.ebm = KAN(config.kaem, self.z_dim, rngs)
 		self.gen = GEN(config.gen, self.z_dim, rngs, sum_latent=not self.ebm.mixture)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
+		self.prior_sampler = mcmc_sampler(self.ebm.prior_score, config.ebm.mcmc)
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -58,16 +58,14 @@ class KAEM(nnx.Module):
 		return self._sample_prior(key, N)
 
 	@nnx.jit
-	def _mix_posterior(self, key: jax.Array, z0: jax.Array, x: jax.Array) -> jax.Array:
-		return self.posterior_sampler(key, self.ebm.prior_score, z0)
+	def _mix_posterior(self, key: jax.Array, z0: jax.Array) -> jax.Array:
+		return self.prior_sampler(key, z0)
 
-	def adapt_domain(
-		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
-	) -> None:
+	def adapt_domain(self, key: jax.Array, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.ebm.update_every == 0 and train_idx > 0:
 			if self.ebm.mixture:
 				z = jnp.repeat(z, self.ebm.Q, axis=-2)
-				z = self._mix_posterior(key, z, x)
+				z = self._mix_posterior(key, z)
 
 			self.ebm.domain_update(z)
 
