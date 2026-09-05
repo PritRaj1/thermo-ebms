@@ -19,9 +19,6 @@ class GEN(nnx.Module):
 		self.sigma = config.gaussian_stddev
 		self.half_prec = jnp.bfloat16 if config.mixed_precision else jnp.float32
 
-		def act(x):
-			return nnx.leaky_relu(x, negative_slope=config.leakyrelu_leak)
-
 		def deconv(cin, block: ConvBlock):
 			return nnx.ConvTranspose(
 				in_features=cin,
@@ -56,14 +53,14 @@ class GEN(nnx.Module):
 		layers += [
 			deconv(z_dim, first),
 			bn(first.channels),
-			act,
+			nnx.relu,
 		]
 
 		for prev, block in zip(config.blocks[:-1], config.blocks[1:]):
 			layers += [
 				deconv(prev.channels, block),
 				bn(block.channels),
-				act,
+				nnx.relu,
 			]
 
 		last = config.blocks[-1]

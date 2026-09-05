@@ -18,7 +18,6 @@ model:
   gen:
     mixed_precision: false
     gaussian_stddev: 0.3
-    leakyrelu_leak: 0.01
     img_channels: 3
     groupnorm: false
     mcmc:
