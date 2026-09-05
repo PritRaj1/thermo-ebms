@@ -6,7 +6,7 @@ from flax import nnx
 from ..config import ModelConfig
 from .gen_cnn import GEN
 from .kan import KAN
-from .sampling import mcmc_sampler
+from .sampling import ula_sampler
 
 
 class KAEM(nnx.Module):
@@ -16,7 +16,7 @@ class KAEM(nnx.Module):
 		self.gen = GEN(config.gen, self.z_dim, rngs, sum_latent=not self.ebm.mixture)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
-		self.prior_sampler = mcmc_sampler(self.ebm.prior_score, config.ebm.mcmc)
+		self.prior_sampler = ula_sampler(config.ebm.mcmc)
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -59,7 +59,7 @@ class KAEM(nnx.Module):
 
 	@nnx.jit
 	def _mix_posterior(self, key: jax.Array, z0: jax.Array) -> jax.Array:
-		return self.prior_sampler(key, z0)
+		return self.prior_sampler(key, self.ebm.prior_score, z0)
 
 	def adapt_domain(self, key: jax.Array, z: jax.Array, train_idx: int) -> None:
 		if train_idx % self.ebm.update_every == 0 and train_idx > 0:

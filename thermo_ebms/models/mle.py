@@ -4,24 +4,27 @@ from flax import nnx
 from ..config import MCMCConfig
 from .base import neuralEBM
 from .kaem import KAEM
-from .sampling import mcmc_sampler
+from .sampling import sgld_sampler
 
 
 class MLE:
-	def sgld_steup(self, config: MCMCConfig):
-		self.posterior_sampler = mcmc_sampler(self.posterior_score, config)
-
 	def posterior_score(self, z: jax.Array, minibatch: jax.Array) -> jax.Array:
 		return self.gen.llhood_score(z, minibatch) + self.ebm.prior_score(z)
 
-	@nnx.jit
-	def _sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
-		z0, key = self.mcmc_init(key, x.shape[0])
-		return self.posterior_sampler(key, z0, x=x)
+	def sgld_setup(self, config: MCMCConfig):
+		self.posterior_sampler = sgld_sampler(self.posterior_score, config)
 
-	def sample_posterior(self, key: jax.Array, x: jax.Array) -> jax.Array:
+	@nnx.jit
+	def _sample_posterior(
+		self, key: jax.Array, z: jax.Array, x: jax.Array
+	) -> jax.Array:
+		return self.posterior_sampler(key, z, x=x)
+
+	def sample_posterior(
+		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int = 0
+	) -> jax.Array:
 		self.eval()
-		return self._sample_posterior(key, x)
+		return self._sample_posterior(key, z, x)
 
 	def loss(self, x: jax.Array, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		num_samples = x.shape[0]
@@ -36,10 +39,10 @@ class MLE:
 class mleEBM(MLE, neuralEBM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sgld_steup(config.gen.mcmc)
+		self.sgld_setup(config.gen.mcmc)
 
 
 class mleKAEM(MLE, KAEM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sgld_steup(config.gen.mcmc)
+		self.sgld_setup(config.gen.mcmc)

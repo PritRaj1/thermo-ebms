@@ -17,7 +17,6 @@ class KAEMConfig:
 @dataclass
 class ThermoConfig:
 	num_temps: int = 1
-	xchange_every: int = 0
 	annealing_cycle: int = 0
 	powerlaw_start: int = 6
 	powerlaw_end: int = 6

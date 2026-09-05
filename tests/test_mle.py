@@ -13,7 +13,8 @@ def test_shape():
 	key = jax.random.key(0)
 	model = mleEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
-	z = model.sample_posterior(key, x)
+	z, key = model.mcmc_init(key, 5)
+	z = model.sample_posterior(key, z, x)
 	assert z.shape == (5, 1, 1, cfg.model.z_dim)
 
 
@@ -21,7 +22,8 @@ def test_sampling():
 	key = jax.random.key(0)
 	model = mleEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
-	z = model.sample_posterior(key, x)
+	z, key = model.mcmc_init(key, 5)
+	z = model.sample_posterior(key, z, x)
 	var = jnp.var(z)
 	assert jnp.isfinite(var)
 	assert var > 1e-6

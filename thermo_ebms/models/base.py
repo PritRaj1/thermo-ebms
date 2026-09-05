@@ -4,7 +4,7 @@ from flax import nnx
 from ..config import ModelConfig
 from .ebm_dense import EBM
 from .gen_cnn import GEN
-from .sampling import mcmc_sampler
+from .sampling import ula_sampler
 
 
 class neuralEBM(nnx.Module):
@@ -14,7 +14,7 @@ class neuralEBM(nnx.Module):
 		self.gen = GEN(config.gen, self.z_dim, rngs)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
-		self.prior_sampler = mcmc_sampler(self.ebm.prior_score, config.ebm.mcmc)
+		self.prior_sampler = ula_sampler(config.ebm.mcmc)
 
 	def mcmc_init(self, key: jax.Array, N: int) -> tuple[jax.Array, jax.Array]:
 		key, subkey = jax.random.split(key)
@@ -24,7 +24,7 @@ class neuralEBM(nnx.Module):
 	@nnx.jit(static_argnames=("N",))
 	def _sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		z0, key = self.mcmc_init(key, N)
-		return self.prior_sampler(key, z0)
+		return self.prior_sampler(key, self.ebm.prior_score, z0)
 
 	def sample_prior(self, key: jax.Array, N: int) -> jax.Array:
 		self.eval()

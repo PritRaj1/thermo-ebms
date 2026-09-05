@@ -6,7 +6,7 @@ from typing import Literal
 @dataclass
 class MCMCConfig:
 	stepsize: float = 0.01
-	numsteps: int = 60
+	numsteps: int | None = None
 
 
 @dataclass

@@ -16,5 +16,4 @@ class XchangeFn(Protocol):
 		self,
 		key: jax.Array,
 		z: jax.Array,
-		idx: jax.Array,
 	) -> jax.Array: ...

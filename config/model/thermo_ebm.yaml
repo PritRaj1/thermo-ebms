@@ -2,7 +2,6 @@ base: neural
 
 thermo:
   num_temps: 4
-  xchange_every: 2
   annealing_cycle: 0
   powerlaw_start: 6
   powerlaw_end: 4

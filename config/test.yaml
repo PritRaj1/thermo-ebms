@@ -32,7 +32,6 @@ model:
     img_channels: 3
     mcmc:
       stepsize: 0.01
-      numsteps: 5
 
 
   kaem:
@@ -46,7 +45,6 @@ model:
 
   thermo:
     num_temps: 3
-    xchange_every: 2
     annealing_cycle: 0
     powerlaw_start: 6
     powerlaw_end: 6
