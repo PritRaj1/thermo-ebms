@@ -16,6 +16,7 @@ model:
     mixed_precision: true
     gaussian_stddev: 0.3
     groupnorm: False
+    leakyrelu_leak: 0.1
     blocks:
       - channels: 16
         kernel_size: 4

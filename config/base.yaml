@@ -20,6 +20,7 @@ model:
     gaussian_stddev: 0.3
     img_channels: 3
     groupnorm: false
+    leakyrelu_leak: 0.01
     mcmc:
       stepsize: 0.01
       numsteps: 20
@@ -36,20 +37,20 @@ model:
 optim:
   gen:
     lr_init: 1e-4
-    lr_end: 1e-5
-    weight_decay: 1e-4
+    lr_end: 5e-5
+    weight_decay: 1e-2
     beta1: 0.999
     beta2: 0.9
   ebm:
     lr_init: 2e-5
-    lr_end: 2e-6
-    weight_decay: 1e-5
+    lr_end: 1e-5
+    weight_decay: 1e-3
     beta1: 0.999
     beta2: 0.9
   kaem:
     lr_init: 2e-5
-    lr_end: 2e-6
-    weight_decay: 1e-5
+    lr_end: 1e-5
+    weight_decay: 1e-3
     beta1: 0.999
     beta2: 0.9
 
