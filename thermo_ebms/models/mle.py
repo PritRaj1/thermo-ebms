@@ -1,24 +1,28 @@
 import jax
 from flax import nnx
 
-from ..config import HMCConfig
+from ..config import ULAConfig
 from .base import neuralEBM
 from .kaem import KAEM
-from .sampling import sghmc_sampler
+from .sampling import ula_sampler
 
 
 class MLE:
 	def posterior_score(self, z: jax.Array, minibatch: jax.Array) -> jax.Array:
 		return self.gen.llhood_score(z, minibatch) + self.ebm.prior_score(z)
 
-	def sghmc_setup(self, config: HMCConfig):
-		self.posterior_sampler = sghmc_sampler(self.posterior_score, config)
+	def mcmc_setup(self, config: ULAConfig):
+		self.posterior_sampler = ula_sampler(config)
 
 	@nnx.jit
 	def _sample_posterior(
 		self, key: jax.Array, z: jax.Array, x: jax.Array
 	) -> jax.Array:
-		return self.posterior_sampler(key, z, x=x)
+
+		def score(position: jax.Array):
+			return self.posterior_score(position, x)
+
+		return self.posterior_sampler(key, score, z)
 
 	def sample_posterior(
 		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int = 0
@@ -39,10 +43,10 @@ class MLE:
 class mleEBM(MLE, neuralEBM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sghmc_setup(config.gen.mcmc)
+		self.mcmc_setup(config.gen.mcmc)
 
 
 class mleKAEM(MLE, KAEM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sghmc_setup(config.gen.mcmc)
+		self.mcmc_setup(config.gen.mcmc)

@@ -9,11 +9,6 @@ class ULAConfig:
 	numsteps: int = 60
 
 
-class HMCConfig:
-	stepsize: float = 0.01
-	num_integration: int = 10
-
-
 @dataclass
 class EBMConfig:
 	p0_stddev: float = 1.0
@@ -36,7 +31,7 @@ class GENConfig:
 	mixed_precision: bool = True
 	gaussian_stddev: float = 0.3
 	groupnorm: bool = False
-	mcmc: HMCConfig = field(default_factory=HMCConfig)
+	mcmc: ULAConfig = field(default_factory=ULAConfig)
 	blocks: Sequence[ConvBlock] = field(
 		default_factory=lambda: [
 			ConvBlock(

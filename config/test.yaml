@@ -32,7 +32,7 @@ model:
     img_channels: 3
     mcmc:
       stepsize: 0.01
-      num_integration: 10
+      numsteps: 10
 
 
   kaem:

@@ -14,8 +14,7 @@ def test_shape():
 	model = thermoEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
-	z, key = model.mcmc_init(key, x.shape[0] * model.num_temps)
-	z = z.reshape(model.num_temps, x.shape[0], *z.shape[1:])
+	z, key = model.mcmc_init(key, x.shape[0])
 	z = model.sample_posterior(key, z, x)
 	assert z.shape == (cfg.model.thermo.num_temps, 5, 1, 1, cfg.model.z_dim)
 
@@ -25,8 +24,7 @@ def test_sampling():
 	model = thermoEBM(cfg.model, nnx.Rngs(key))
 	model.eval()
 
-	z, key = model.mcmc_init(key, x.shape[0] * model.num_temps)
-	z = z.reshape(model.num_temps, x.shape[0], *z.shape[1:])
+	z, key = model.mcmc_init(key, x.shape[0])
 	z = model.sample_posterior(key, z, x)
 
 	var = jnp.var(z)

@@ -21,8 +21,8 @@ model:
     img_channels: 3
     groupnorm: false
     mcmc:
-      stepsize: 0.001
-      num_integration: 10
+      stepsize: 0.01
+      numsteps: 20
 
   kaem:
     mixture: true

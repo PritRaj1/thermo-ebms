@@ -2,10 +2,10 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import HMCConfig, ThermoConfig
+from ..config import ThermoConfig, ULAConfig
 from .base import neuralEBM
 from .kaem import KAEM
-from .sampling import sghmc_sampler
+from .sampling import ula_sampler
 
 
 def build_pairs(T, offset):
@@ -22,7 +22,7 @@ class Thermo:
 
 		return jax.vmap(powerpost_score, in_axes=(0, 0))(z, self.temps)
 
-	def thermo_setup(self, mcmc_config: HMCConfig, config: ThermoConfig):
+	def thermo_setup(self, mcmc_config: ULAConfig, config: ThermoConfig):
 		"""Init temperature power law schedule and population sampling"""
 		num_temps = config.num_temps
 		self.num_temps = num_temps if (num_temps % 2 == 0) else num_temps - 1
@@ -35,7 +35,7 @@ class Thermo:
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
 
-		self.posterior_sampler = sghmc_sampler(self.thermo_score, mcmc_config)
+		self.posterior_sampler = ula_sampler(mcmc_config)
 
 	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
 		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""
@@ -85,19 +85,26 @@ class Thermo:
 
 	@nnx.jit
 	def _sample_posterior(
-		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int
+		self, key: jax.Array, z: jax.Array, x: jax.Array
 	) -> jax.Array:
 
-		def xchange(key_i: jax.Array, z_i: jax.Array) -> jax.Array:
-			return self.replica_xchange(key_i, z_i, train_idx, x)
+		def xchange(key_i: jax.Array, z_i: jax.Array, idx: int) -> jax.Array:
+			return self.replica_xchange(key_i, z_i, idx, x)
 
-		return self.posterior_sampler(key, z, x=x, xchange_func=xchange)
+		def score(position: jax.Array):
+			return self.thermo_score(position, x)
+
+		z = jnp.repeat(z[None], self.num_temps, axis=0)
+		return self.posterior_sampler(key, score, z, xchange_func=xchange)
 
 	def sample_posterior(
-		self, key: jax.Array, z: jax.Array, x: jax.Array, train_idx: int = 0
+		self,
+		key: jax.Array,
+		z: jax.Array,
+		x: jax.Array,
 	) -> jax.Array:
 		self.eval()
-		return self._sample_posterior(key, z, x, train_idx)
+		return self._sample_posterior(key, z, x)
 
 	def loss(self, x: jax.Array, z_thermo: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""

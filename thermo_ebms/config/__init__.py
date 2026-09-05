@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from .model import KAEMConfig, ModelConfig, ThermoConfig
-from .networks import ConvBlock, EBMConfig, GENConfig, HMCConfig, ULAConfig
+from .networks import ConvBlock, EBMConfig, GENConfig, ULAConfig
 from .pipeline import (
 	AdamWConfig,
 	LoggingConfig,
@@ -27,7 +27,6 @@ __all__ = [
 	"ConvBlock",
 	"EBMConfig",
 	"GENConfig",
-	"HMCConfig",
 	"KAEMConfig",
 	"ModelConfig",
 	"OptConfig",

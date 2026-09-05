@@ -5,7 +5,7 @@ from .kaem import KAEM
 from .kan import KAN
 from .mle import mleEBM, mleKAEM
 from .resampler import ImportanceTuner
-from .sampling import sghmc_sampler, ula_sampler
+from .sampling import ula_sampler
 from .thermo import thermoEBM, thermoKAEM
 
 __all__ = [
@@ -17,7 +17,6 @@ __all__ = [
 	"mleEBM",
 	"mleKAEM",
 	"neuralEBM",
-	"sghmc_sampler",
 	"thermoEBM",
 	"thermoKAEM",
 	"ula_sampler",

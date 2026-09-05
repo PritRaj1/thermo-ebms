@@ -106,7 +106,6 @@ class ebmTrainer:
 		self.num_samples = config.logging.num_samples
 
 		# SGLD init + finetune with importance sampling
-		self.z_post = None
 		self.importance = False
 		self.tuner = ImportanceTuner(config.training.importance_finetune.type)
 		self.finetune_epoch = int(
@@ -246,23 +245,14 @@ class ebmTrainer:
 					self.st, self.tuner, x, z_post, z_prior
 				)
 
-			return loss, grad_norm, None, key
+			return loss, grad_norm, None, None, key
 
 		key, prior_key, posterior_key, grid_key = jax.random.split(key, 4)
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
-
-		# [IMPORTANT:] first time SGLD setup
-		if self.z_post is None:
-			N_t = max(self.st.model.num_temps, 1)
-			z, key = self.st.model.mcmc_init(key, x.shape[0] * N_t)
-			self.z_post = z.reshape(N_t, x.shape[0], *z.shape[1:]) if N_t > 1 else z
-
-		self.z_post = self.st.model.sample_posterior(
-			posterior_key, self.z_post, x, train_idx
-		)
+		z_post = self.st.model.sample_posterior(posterior_key, z_prior, x)
 
 		self.st.model.train()
-		loss, grad_norm = update(self.st, x, self.z_post, z_prior)
+		loss, grad_norm = update(self.st, x, z_post, z_prior)
 
 		with jax.set_mesh(self.mesh):
 			self.st.model.adapt_temps(
@@ -275,14 +265,16 @@ class ebmTrainer:
 				train_idx,
 			)
 
-		return loss, grad_norm, z_prior, key
+		return loss, grad_norm, z_post, z_prior, key
 
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, grad_norm, z_prior, key = self.train_step(x, train_idx, subkey)
+			loss, grad_norm, z_post, z_prior, key = self.train_step(
+				x, train_idx, subkey
+			)
 			self.profiler(train_idx)
 
 			train_idx += 1
@@ -307,7 +299,7 @@ class ebmTrainer:
 				self.writer.write_histograms(
 					train_idx,
 					{
-						"latents/z_posterior": np.asarray(self.z_post),
+						"latents/z_posterior": np.asarray(z_post),
 						"latents/z_prior": np.asarray(z_prior),
 					},
 				)
