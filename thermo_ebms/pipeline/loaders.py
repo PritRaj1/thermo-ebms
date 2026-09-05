@@ -79,4 +79,4 @@ def get_loaders(
 		bldr = tfds.builder(name)
 		num_examples = bldr.info.splits["train"].num_examples
 
-	return train_loader, num_examples // data_config.global_batch_size
+	return train_loader, num_examples, data_config.global_batch_size

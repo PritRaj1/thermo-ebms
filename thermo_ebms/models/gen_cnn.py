@@ -14,10 +14,16 @@ class GEN(nnx.Module):
 	full_prec = jnp.float32
 
 	def __init__(
-		self, config: GENConfig, z_dim: int, rngs: nnx.Rngs, sum_latent: bool = False
+		self,
+		config: GENConfig,
+		z_dim: int,
+		rngs: nnx.Rngs,
+		sum_latent: bool = False,
+		sgld_correction: int = 1,
 	):
 		self.sigma = config.gaussian_stddev
 		self.half_prec = jnp.bfloat16 if config.mixed_precision else jnp.float32
+		self.sgld_correction = sgld_correction
 
 		def deconv(cin, block: ConvBlock):
 			return nnx.ConvTranspose(
@@ -96,7 +102,13 @@ class GEN(nnx.Module):
 		"""∇_z log p(x|z) ∝ - ∇_z ||x - g(z)||^2 / (2σ^2)"""
 
 		def wrapped_ll(z_i: jax.Array) -> jax.Array:
-			return t * self.loss(x, z_i) / (2 * self.sigma**2)
+			return (
+				t
+				* self.loss(x, z_i)
+				/ (2 * self.sigma**2)
+				* self.sgld_correction
+				/ x.shape[0]
+			)
 
 		grad_ll = jax.grad(wrapped_ll)(z)
 		return -grad_ll

@@ -10,10 +10,18 @@ from .sampling import ula_sampler
 
 
 class KAEM(nnx.Module):
-	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
+	"""Kolmogorov-Arnold Energy Model with univariate EBM from Raj et al."""
+
+	def __init__(self, config: ModelConfig, rngs: nnx.Rngs, sgld_correction: int = 1):
 		self.z_dim = config.z_dim
 		self.ebm = KAN(config.kaem, self.z_dim, rngs)
-		self.gen = GEN(config.gen, self.z_dim, rngs, sum_latent=not self.ebm.mixture)
+		self.gen = GEN(
+			config.gen,
+			self.z_dim,
+			rngs,
+			sum_latent=not self.ebm.mixture,
+			sgld_correction=sgld_correction,
+		)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
 		self.prior_sampler = ula_sampler(config.ebm.mcmc)

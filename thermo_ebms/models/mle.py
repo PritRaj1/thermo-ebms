@@ -37,12 +37,12 @@ class MLE:
 
 
 class mleEBM(MLE, neuralEBM):
-	def __init__(self, config, rngs):
-		super().__init__(config, rngs)
+	def __init__(self, config, rngs, sgld_correction: int = 1):
+		super().__init__(config, rngs, sgld_correction=sgld_correction)
 		self.sgld_setup(config.gen.mcmc)
 
 
 class mleKAEM(MLE, KAEM):
-	def __init__(self, config, rngs):
-		super().__init__(config, rngs)
+	def __init__(self, config, rngs, sgld_correction: int = 1):
+		super().__init__(config, rngs, sgld_correction=sgld_correction)
 		self.sgld_setup(config.gen.mcmc)

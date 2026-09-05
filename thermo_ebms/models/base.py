@@ -8,10 +8,12 @@ from .sampling import ula_sampler
 
 
 class neuralEBM(nnx.Module):
-	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
+	"""Learning latent space energy-based prior model from Pang et al. with neural network."""
+
+	def __init__(self, config: ModelConfig, rngs: nnx.Rngs, sgld_correction: int = 1):
 		self.z_dim = config.z_dim
 		self.ebm = EBM(config.ebm, self.z_dim, rngs)
-		self.gen = GEN(config.gen, self.z_dim, rngs)
+		self.gen = GEN(config.gen, self.z_dim, rngs, sgld_correction=sgld_correction)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
 		self.prior_sampler = ula_sampler(config.ebm.mcmc)
