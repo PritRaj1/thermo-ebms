@@ -4,6 +4,7 @@ from .gen_cnn import GEN
 from .kaem import KAEM
 from .kan import KAN
 from .mle import mleEBM, mleKAEM
+from .resampler import ImportanceTuner
 from .sampling import mcmc_sampler
 from .thermo import thermoEBM, thermoKAEM
 
@@ -12,6 +13,7 @@ __all__ = [
 	"GEN",
 	"KAEM",
 	"KAN",
+	"ImportanceTuner",
 	"mcmc_sampler",
 	"mleEBM",
 	"mleKAEM",
