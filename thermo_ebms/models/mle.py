@@ -1,18 +1,18 @@
 import jax
 from flax import nnx
 
-from ..config import MCMCConfig
+from ..config import HMCConfig
 from .base import neuralEBM
 from .kaem import KAEM
-from .sampling import sgld_sampler
+from .sampling import sghmc_sampler
 
 
 class MLE:
 	def posterior_score(self, z: jax.Array, minibatch: jax.Array) -> jax.Array:
 		return self.gen.llhood_score(z, minibatch) + self.ebm.prior_score(z)
 
-	def sgld_setup(self, config: MCMCConfig):
-		self.posterior_sampler = sgld_sampler(self.posterior_score, config)
+	def sghmc_setup(self, config: HMCConfig):
+		self.posterior_sampler = sghmc_sampler(self.posterior_score, config)
 
 	@nnx.jit
 	def _sample_posterior(
@@ -39,10 +39,10 @@ class MLE:
 class mleEBM(MLE, neuralEBM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sgld_setup(config.gen.mcmc)
+		self.sghmc_setup(config.gen.mcmc)
 
 
 class mleKAEM(MLE, KAEM):
 	def __init__(self, config, rngs):
 		super().__init__(config, rngs)
-		self.sgld_setup(config.gen.mcmc)
+		self.sghmc_setup(config.gen.mcmc)

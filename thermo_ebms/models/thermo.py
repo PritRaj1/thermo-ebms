@@ -2,10 +2,10 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import MCMCConfig, ThermoConfig
+from ..config import HMCConfig, ThermoConfig
 from .base import neuralEBM
 from .kaem import KAEM
-from .sampling import sgld_sampler
+from .sampling import sghmc_sampler
 
 
 def build_pairs(T, offset):
@@ -22,7 +22,7 @@ class Thermo:
 
 		return jax.vmap(powerpost_score, in_axes=(0, 0))(z, self.temps)
 
-	def thermo_setup(self, mcmc_config: MCMCConfig, config: ThermoConfig):
+	def thermo_setup(self, mcmc_config: HMCConfig, config: ThermoConfig):
 		"""Init temperature power law schedule and population sampling"""
 		num_temps = config.num_temps
 		self.num_temps = num_temps if (num_temps % 2 == 0) else num_temps - 1
@@ -35,7 +35,7 @@ class Thermo:
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
 
-		self.posterior_sampler = sgld_sampler(self.thermo_score, mcmc_config)
+		self.posterior_sampler = sghmc_sampler(self.thermo_score, mcmc_config)
 
 	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
 		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""

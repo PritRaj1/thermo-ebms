@@ -3,15 +3,15 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import MCMCConfig, ScoreFn, XchangeFn
+from ..config import HMCConfig, ScoreFn, ULAConfig, XchangeFn
 
 
-class sgld_sampler(nnx.Module):
-	"""Stochastic Gradient Langevin Dynamics posterior sampler"""
+class sghmc_sampler(nnx.Module):
+	"""Stochastic Gradient HMC posterior sampler"""
 
-	def __init__(self, score: ScoreFn, config: MCMCConfig):
+	def __init__(self, score: ScoreFn, config: HMCConfig):
 		self.eta = config.stepsize
-		self.kernel = blackjax.sgld(score)
+		self.kernel = blackjax.sghmc(score, config.num_integration)
 
 	def __call__(
 		self,
@@ -32,7 +32,7 @@ class sgld_sampler(nnx.Module):
 class ula_sampler(nnx.Module):
 	"""Unadjusted Langevin Algorithm sampler"""
 
-	def __init__(self, config: MCMCConfig):
+	def __init__(self, config: ULAConfig):
 		self.eta = config.stepsize
 		self.run_iters = config.numsteps
 

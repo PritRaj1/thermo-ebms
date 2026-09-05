@@ -4,16 +4,21 @@ from typing import Literal
 
 
 @dataclass
-class MCMCConfig:
+class ULAConfig:
 	stepsize: float = 0.01
-	numsteps: int | None = None
+	numsteps: int = 60
+
+
+class HMCConfig:
+	stepsize: float = 0.01
+	num_integration: int = 10
 
 
 @dataclass
 class EBMConfig:
 	p0_stddev: float = 1.0
 	leakyrelu_leak: float = 0.1
-	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
+	mcmc: ULAConfig = field(default_factory=ULAConfig)
 	layer_widths: list[int] = field(default_factory=lambda: [200, 200, 1])
 
 
@@ -31,7 +36,7 @@ class GENConfig:
 	mixed_precision: bool = True
 	gaussian_stddev: float = 0.3
 	groupnorm: bool = False
-	mcmc: MCMCConfig = field(default_factory=MCMCConfig)
+	mcmc: HMCConfig = field(default_factory=HMCConfig)
 	blocks: Sequence[ConvBlock] = field(
 		default_factory=lambda: [
 			ConvBlock(
