@@ -88,14 +88,13 @@ class ebmTrainer:
 			config.training, config.model.seed
 		)
 		self.updates_per_epoch = num_examples // batch_size
-		sgld_correction = num_examples
 
 		key_init = jax.random.key(config.model.seed)
 		self.num_epochs = config.training.epochs
 
 		with jax.set_mesh(self.mesh):
 			key = nnx.Rngs(key_init)
-			model = model_cls(config.model, key, sgld_correction=sgld_correction)
+			model = model_cls(config.model, key)
 			tx = coupled_opt(config.optim, self.updates_per_epoch * self.num_epochs)
 			self.st = nnx.ModelAndOptimizer(model, tx, wrt=nnx.Param)
 

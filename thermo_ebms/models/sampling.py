@@ -9,11 +9,7 @@ from ..config import MCMCConfig, ScoreFn, XchangeFn
 class sgld_sampler(nnx.Module):
 	"""Stochastic Gradient Langevin Dynamics posterior sampler"""
 
-	def __init__(
-		self,
-		score: ScoreFn,
-		config: MCMCConfig,
-	):
+	def __init__(self, score: ScoreFn, config: MCMCConfig):
 		self.eta = config.stepsize
 		self.kernel = blackjax.sgld(score)
 
@@ -40,12 +36,7 @@ class ula_sampler(nnx.Module):
 		self.eta = config.stepsize
 		self.run_iters = config.numsteps
 
-	def __call__(
-		self,
-		key: jax.Array,
-		score: ScoreFn,
-		z0: jax.Array,
-	):
+	def __call__(self, key: jax.Array, score: ScoreFn, z0: jax.Array):
 		key, runkey = jax.random.split(key)
 
 		def step(carry, idx):

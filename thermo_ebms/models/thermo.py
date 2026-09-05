@@ -116,12 +116,12 @@ class Thermo:
 
 
 class thermoEBM(Thermo, neuralEBM):
-	def __init__(self, config, rngs, sgld_correction: int = 1):
-		super().__init__(config, rngs, sgld_correction=sgld_correction)
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)
 		self.thermo_setup(config.gen.mcmc, config.thermo)
 
 
 class thermoKAEM(Thermo, KAEM):
-	def __init__(self, config, rngs, sgld_correction: int = 1):
-		super().__init__(config, rngs, sgld_correction=sgld_correction)
+	def __init__(self, config, rngs):
+		super().__init__(config, rngs)
 		self.thermo_setup(config.gen.mcmc, config.thermo)

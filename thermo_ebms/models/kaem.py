@@ -12,7 +12,7 @@ from .sampling import ula_sampler
 class KAEM(nnx.Module):
 	"""Kolmogorov-Arnold Energy Model with univariate EBM from Raj et al."""
 
-	def __init__(self, config: ModelConfig, rngs: nnx.Rngs, sgld_correction: int = 1):
+	def __init__(self, config: ModelConfig, rngs: nnx.Rngs):
 		self.z_dim = config.z_dim
 		self.ebm = KAN(config.kaem, self.z_dim, rngs)
 		self.gen = GEN(
@@ -20,7 +20,6 @@ class KAEM(nnx.Module):
 			self.z_dim,
 			rngs,
 			sum_latent=not self.ebm.mixture,
-			sgld_correction=sgld_correction,
 		)
 		self.num_temps = -1
 		self.adapt_temp_freq = -1
