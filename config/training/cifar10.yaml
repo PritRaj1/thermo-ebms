@@ -2,6 +2,9 @@ dataset: cifar10
 epochs: 100
 global_batch_size: 128
 image_res: 32
+importance_finetune:
+  type: residual
+  start_fraction: 0.5
 
 model_overrides:
   gen:

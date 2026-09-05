@@ -16,7 +16,7 @@ from jax.sharding import PartitionSpec as P
 from omegaconf import OmegaConf
 
 from ..config import Config
-from ..models import mleEBM, mleKAEM, thermoEBM, thermoKAEM
+from ..models import ImportanceTuner, mleEBM, mleKAEM, thermoEBM, thermoKAEM
 from .loaders import get_loaders
 from .opt import coupled_opt
 
@@ -44,6 +44,21 @@ def update(
 	z_prior: jax.Array,
 ) -> tuple[jax.Array, jax.Array]:
 	loss, grads = nnx.value_and_grad(loss_fn)(state.model, x, z_post, z_prior)
+	state.update(grads)
+	grad_norm = jnp.sqrt(
+		sum(jnp.sum(jnp.square(g)) for g in jax.tree_util.tree_leaves(grads))
+	)
+	return loss, grad_norm
+
+
+def update_importance(
+	state: nnx.ModelAndOptimizer,
+	tuner: ImportanceTuner,
+	x: jax.Array,
+	z_post: jax.Array,
+	z_prior: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
+	loss, grads = nnx.value_and_grad(tuner)(state.model, x, z_post, z_prior)
 	state.update(grads)
 	grad_norm = jnp.sqrt(
 		sum(jnp.sum(jnp.square(g)) for g in jax.tree_util.tree_leaves(grads))
@@ -82,11 +97,19 @@ class ebmTrainer:
 			tx = coupled_opt(config.optim, self.updates_per_epoch * self.num_epochs)
 			self.st = nnx.ModelAndOptimizer(model, tx, wrt=nnx.Param)
 
+		# Generations for eval
 		self.final_samples = config.unbiased_metrics.num_samples
 		self.final_bsize = config.unbiased_metrics.batch_size_to_generate
 		ckpt_every = config.logging.ckpt_every * self.updates_per_epoch
 		self.sample_every = config.logging.sample_every
 		self.num_samples = config.logging.num_samples
+
+		# Finetuning with importance sampling
+		self.importance = False
+		self.tuner = ImportanceTuner(config.training.importance_finetune.type)
+		self.finetune_epoch = int(
+			config.training.importance_finetune.start_fraction * self.num_epochs
+		)
 
 		self.is_host0 = jax.process_index() == 0
 		logdir = config.logging.logdir
@@ -198,20 +221,45 @@ class ebmTrainer:
 			img = model.gen(z_max)
 			self.writer.write_images(step, {"images/maxpdf_mixture": to_uint8(img)})
 
-	def train_step(
-		self, x: jax.Array, train_idx: int, key: jax.Array
-	) -> tuple[jax.Array, jax.Array]:
+	def train_step(self, x, train_idx, key):
+		if self.importance:
+			key, prior_key, posterior_key, grid_key = jax.random.split(key, 4)
+			z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
+			with jax.set_mesh(self.mesh):
+				subkeys = jax.random.split(posterior_key, x.shape[0])
+				subkeys = jax.sharding.reshard(
+					subkeys, NamedSharding(self.mesh, P("data"))
+				)
+				idx = self.tuner.batch_resample(subkeys, self.st.model, z_prior, x)
+				z_post = z_prior.at[idx].get(out_sharding=P("data", None, None, None))
+				z_post = z_post.reshape(-1, *z_prior.shape[1:])
+				x = jnp.repeat(
+					x,
+					x.shape[0],
+					axis=0,
+					out_sharding=P("data", None, None, None),
+				)
+
+			loss, grad_norm = update_importance(self.st, self.tuner, x, z_post, z_prior)
+			return loss, grad_norm, None, None, key
+
 		key, prior_key, posterior_key, grid_key = jax.random.split(key, 4)
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_post = self.st.model.sample_posterior(posterior_key, x)
 
 		self.st.model.train()
 		loss, grad_norm = update(self.st, x, z_post, z_prior)
+
 		with jax.set_mesh(self.mesh):
 			self.st.model.adapt_temps(
-				train_idx, self.updates_per_epoch * self.num_epochs
+				train_idx,
+				self.updates_per_epoch * self.num_epochs,
 			)
-			self.st.model.adapt_domain(grid_key, z_post, train_idx)
+			self.st.model.adapt_domain(
+				grid_key,
+				z_post,
+				train_idx,
+			)
 
 		return loss, grad_norm, z_prior, z_post, key
 
@@ -236,13 +284,6 @@ class ebmTrainer:
 			sample_key = jax.random.fold_in(key, train_idx)
 			x, _ = self.st.model(sample_key, self.num_samples)
 			self.writer.write_images(train_idx, {"images/generated": to_uint8(x)})
-			self.writer.write_histograms(
-				train_idx,
-				{
-					"latents/z_posterior": np.asarray(z_post),
-					"latents/z_prior": np.asarray(z_prior),
-				},
-			)
 			ps_histograms = {
 				f"ebm_params/{'/'.join(map(str, path))}": np.asarray(val)
 				for path, val in jax.tree_util.tree_leaves_with_path(
@@ -250,6 +291,14 @@ class ebmTrainer:
 				)
 			}
 			self.writer.write_histograms(train_idx, ps_histograms)
+			if (z_post is not None) and (z_prior is not None):
+				self.writer.write_histograms(
+					train_idx,
+					{
+						"latents/z_posterior": np.asarray(z_post),
+						"latents/z_prior": np.asarray(z_prior),
+					},
+				)
 
 			if self.model_type == "kaem":
 				self.plot_kaem(epoch)
@@ -269,6 +318,7 @@ class ebmTrainer:
 
 	def run(self, key: jax.Array) -> jax.Array:
 		for epoch in range(self.num_epochs):
+			self.importance = epoch >= self.finetune_epoch
 			key = self.train_epoch(key, epoch)
 
 		self.writer.flush()

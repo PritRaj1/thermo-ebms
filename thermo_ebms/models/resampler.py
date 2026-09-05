@@ -15,7 +15,7 @@ def pairwise_sqdist(xi: jax.Array, xj: jax.Array) -> jax.Array:
 	return jnp.sum((xi - xj) ** 2)
 
 
-class ImportanceTuner:
+class ImportanceTuner(nnx.Module):
 	def __init__(self, resampler_type: str):
 		self.resampler = resampler_map.get(resampler_type, "residual")
 
@@ -26,21 +26,22 @@ class ImportanceTuner:
 			axis=tuple(range(2, x.ndim + 1)),
 		)
 
-	def batch_resample(self, key: jax.Array, logllhood: jax.Array, N: int):
-		subkeys = jax.random.split(key, N)
-		weights = jax.nn.softmax(logllhood, axis=-1)
-		return jax.vmap(self.resampler, in_axes=(0, 0, None))(subkeys, weights, N)
+	@nnx.jit
+	def batch_resample(
+		self, subkeys: jax.Array, model: nnx.Module, z: jax.Array, x: jax.Array
+	) -> tuple[jax.Array, jax.Array, jax.Array]:
+		def resample_one(key, weights):
+			return self.resampler(key, weights, N)
 
-	def __call__(self, key: jax.Array, model: nnx.Module, x: jax.Array) -> jax.Array:
+		N = z.shape[0]
+		ll = self.logllhood(model, z, x)
+		weights = jax.nn.softmax(ll, axis=-1)
+		return jax.vmap(resample_one)(subkeys, weights)
+
+	def __call__(
+		self, model: jax.Array, x: jax.Array, z_post: jax.Array, z_prior: jax.Array
+	) -> jax.Array:
 		num_samples = x.shape[0]
-		key, prior_key, posterior_key = jax.random.split(key, 3)
-
-		z_prior = model.sample_prior(prior_key, num_samples)
-		ll = self.logllhood(model, z_prior, x)
-		idx = self.batch_resample(posterior_key, ll, num_samples)
-		z_post = z_prior[idx].reshape(-1, *z_prior.shape[1:])
-		x = jnp.repeat(x, num_samples, axis=0)
-
-		contrastive_div = model.ebm.loss(z_post, z_prior) / (num_samples**2)
-		recon = model.gen.loss(x, z_post) / (num_samples**2)
+		contrastive_div = model.ebm.loss(z_post, z_prior) / num_samples
+		recon = model.gen.loss(x, z_post) / num_samples
 		return contrastive_div + recon

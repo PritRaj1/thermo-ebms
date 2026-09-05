@@ -3,11 +3,18 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class ResamplerConfig:
+	type: str = "residual"
+	finetune_start_fraction: float = 0.5
+
+
+@dataclass
 class TrainingConfig:
 	dataset: str = "cifar10"
 	epochs: int = 100
 	global_batch_size: int = 128
 	image_res: int = 32
+	importance_finetune: ResamplerConfig = field(default_factory=ResamplerConfig)
 
 
 @dataclass

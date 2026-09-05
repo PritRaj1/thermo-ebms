@@ -72,10 +72,14 @@ optim:
     beta2: 0.9
 
 training:
-  epochs: 1
+  epochs: 4
   global_batch_size: 32
   dataset: fake32
   image_res: 32
+  importance_finetune:
+    type: residual
+    start_fraction: 0.5
+
 
 logging:
   logdir: /tmp

@@ -1,0 +1,32 @@
+import jax
+import jax.numpy as jnp
+from flax import nnx
+from utils import make_config, make_x
+
+from thermo_ebms import KAEM, ImportanceTuner, mleEBM
+
+cfg = make_config(z_dim=8)
+x = make_x(batch=5)
+
+
+def test_mle_finite():
+    key = jax.random.key(0)
+    model = mleEBM(cfg.model, nnx.Rngs(key))
+    tuner = ImportanceTuner("residual")
+
+    z_prior = model.sampler_prior(key, x.shape[0])
+    subkeys = jax.random.split(posterior_key, x.shape[0])
+    z_post, x_new = tuner.batch_resample(key, model, z_prior, x)
+    loss = tuner(model, x_new, z_post, z_prior)
+    assert jnp.isfinite(loss)
+
+
+def test_kaem_finite():
+    key = jax.random.key(0)
+    model = KAEM(cfg.model, nnx.Rngs(key))
+    tuner = ImportanceTuner("residual")
+
+    z_prior = model.sampler_prior(key, 5)
+    z_post, x_new = tuner.batch_resample(key, model, z_prior, x)
+    loss = tuner(model, x_new, z_post, z_prior)
+    assert jnp.isfinite(loss)
