@@ -55,8 +55,8 @@ class EBM(nnx.Module):
 	) -> jax.Array:
 		"""∇_z log(p_α(z)) ∝ ∇_z f(z) - z / σ^2"""
 		grad_f = jax.grad(self.en)(z)
-		return grad_f - z / (self.sigma**2)
+		return -grad_f - z / (self.sigma**2)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""
-		return -self.en(z_post) + self.en(z_prior)
+		return self.en(z_post) - self.en(z_prior)
