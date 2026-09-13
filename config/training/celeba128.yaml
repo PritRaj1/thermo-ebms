@@ -4,7 +4,7 @@ global_batch_size: 32
 image_res: 128
 importance_finetune:
   type: residual
-  start_fraction: 0.5
+  start_fraction: 1.5
 
 model_overrides:
   gen:

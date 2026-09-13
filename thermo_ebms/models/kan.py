@@ -8,18 +8,28 @@ from numpy.polynomial.legendre import leggauss
 
 from ..config import KAEMConfig
 
+# def kernel(
+#   z: jax.Array,
+#   translation: jax.Array,
+#   bandwidth: jax.Array,
+#   tau: jax.Array,
+# ) -> jax.Array:
+#   """Morelet Wavelet latent density"""
+#   z_scaled = (z - translation) / bandwidth
+#   real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
+#   envelope = jnp.exp(-(z_scaled**2) / 2)
+#   return real * envelope
+
 
 def kernel(
 	z: jax.Array,
-	translation: jax.Array,
+	centres: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
 ) -> jax.Array:
-	"""Morelet Wavelet latent density"""
-	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return real * envelope
+	"""Gaussian RBF latent density"""
+	z_scaled = (z - centres) / bandwidth
+	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -43,9 +53,17 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
-		self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		# RBG init (starting +-3 std dev)
+		nc = config.numcentres
+		centres = jnp.reshape(jnp.linspace(-3.0, 3.0, num=nc), (1, nc, 1, 1))
+		self.translation = nnx.Param(jnp.broadcast_to(centres, (1, nc, self.Q, self.P)))
+		self.bandwidth = nnx.Param(rngs.normal((1, nc, self.Q, P)))
+		self.tau = nnx.Param(rngs.normal((1, nc, self.Q, P)))
+
+		# # Morlet Wavelet init
+		# self.translation = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		# self.bandwidth = nnx.Param(rngs.normal((1, 1, self.Q, P)))
+		# self.tau = nnx.Param(rngs.normal((1, 1, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization

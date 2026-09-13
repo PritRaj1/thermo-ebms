@@ -16,7 +16,7 @@ model:
       numsteps: 60
 
   gen:
-    mixed_precision: false
+    mixed_precision: true
     gaussian_stddev: 0.3
     img_channels: 3
     groupnorm: false
@@ -26,8 +26,9 @@ model:
 
   kaem:
     mixture: true
-    numquad: 25
+    numquad: 200
     p0_stddev: 1.0
+    numcentres: 20
     domain_update_freq: 100
     domain_update_coverage: 0.99
     mixture_regularization: 0.0001
