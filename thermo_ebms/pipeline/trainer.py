@@ -105,12 +105,15 @@ class ebmTrainer:
 		self.sample_every = config.logging.sample_every
 		self.num_samples = config.logging.num_samples
 
-		# SGLD init + finetune with importance sampling
+		# Finetune with importance sampling
 		self.importance = False
-		self.tuner = ImportanceTuner(config.training.importance_finetune.type)
-		self.finetune_epoch = int(
-			config.training.importance_finetune.start_fraction * self.num_epochs
-		)
+		self.is_epochs = config.training.is_finetune.epochs
+		if self.is_epochs > 0:
+			self.tuner = ImportanceTuner(config.training.is_finetune.type)
+			self.is_tx = coupled_opt(
+				config.training.is_finetune.optim,
+				self.updates_per_epoch * self.is_epochs,
+			)
 
 		# Setup writers
 		self.is_host0 = jax.process_index() == 0
@@ -224,29 +227,6 @@ class ebmTrainer:
 			self.writer.write_images(step, {"images/maxpdf_mixture": to_uint8(img)})
 
 	def train_step(self, x, train_idx, key):
-		if self.importance:
-			key, prior_key, posterior_key = jax.random.split(key, 3)
-			z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
-			with jax.set_mesh(self.mesh):
-				subkeys = jax.random.split(posterior_key, x.shape[0])
-				subkeys = jax.sharding.reshard(
-					subkeys, NamedSharding(self.mesh, P("data"))
-				)
-				idx = self.tuner.batch_resample(subkeys, self.st.model, z_prior, x)
-				z_post = z_prior.at[idx].get(out_sharding=P("data", None, None, None))
-				z_post = z_post.reshape(-1, *z_prior.shape[1:])
-				x = jnp.repeat(
-					x,
-					x.shape[0],
-					axis=0,
-					out_sharding=P("data", None, None, None),
-				)
-				loss, grad_norm = update_importance(
-					self.st, self.tuner, x, z_post, z_prior
-				)
-
-			return loss, grad_norm, None, None, key
-
 		key, prior_key, posterior_key, grid_key = jax.random.split(key, 4)
 		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
 		z_post = self.st.model.sample_posterior(posterior_key, z_prior, x)
@@ -267,14 +247,32 @@ class ebmTrainer:
 
 		return loss, grad_norm, z_post, z_prior, key
 
+	def finetune_step(self, x, train_idx, key):
+		key, prior_key, posterior_key = jax.random.split(key, 3)
+		z_prior = self.st.model.sample_prior(prior_key, x.shape[0])
+		with jax.set_mesh(self.mesh):
+			subkeys = jax.random.split(posterior_key, x.shape[0])
+			subkeys = jax.sharding.reshard(subkeys, NamedSharding(self.mesh, P("data")))
+			idx = self.tuner.batch_resample(subkeys, self.st.model, z_prior, x)
+			z_post = z_prior.at[idx].get(out_sharding=P("data", None, None, None))
+			z_post = z_post.reshape(-1, *z_prior.shape[1:])
+			x = jnp.repeat(
+				x,
+				x.shape[0],
+				axis=0,
+				out_sharding=P("data", None, None, None),
+			)
+			loss, grad_norm = update_importance(self.st, self.tuner, x, z_post, z_prior)
+
+		return loss, grad_norm, None, None, key
+
 	def train_epoch(self, key: jax.Array, epoch: int) -> jax.Array:
 		train_idx = epoch * self.updates_per_epoch
 		for i, batch in zip(range(self.updates_per_epoch), self.train_loader):
 			x = jax.device_put(batch["x"], self.batch_sharding)
 			key, subkey = jax.random.split(key)
-			loss, grad_norm, z_post, z_prior, key = self.train_step(
-				x, train_idx, subkey
-			)
+			step_fn = self.train_step if not self.importance else self.finetune_step
+			loss, grad_norm, z_post, z_prior, key = step_fn(x, train_idx, subkey)
 			self.profiler(train_idx)
 
 			train_idx += 1
@@ -322,8 +320,17 @@ class ebmTrainer:
 
 	def run(self, key: jax.Array) -> jax.Array:
 		for epoch in range(self.num_epochs):
-			self.importance = epoch >= self.finetune_epoch
 			key = self.train_epoch(key, epoch)
+
+		if self.is_epochs > 0:
+			self.importance = True
+			with jax.set_mesh(self.mesh):
+				self.st = nnx.ModelAndOptimizer(
+					self.st.model, self.is_tx, wrt=nnx.Param
+				)
+
+			for epoch in range(self.is_epochs):
+				key = self.train_epoch(key, epoch + self.num_epochs)
 
 		self.writer.flush()
 		sync_global_devices("post_training_sync")

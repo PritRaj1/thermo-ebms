@@ -3,9 +3,27 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class ResamplerConfig:
+class AdamWConfig:
+	lr_init: float = 0.0001
+	lr_end: float = 0.00002
+	weight_decay: float = 0.0001
+	beta1: float = 0.999
+	beta2: float = 0.9
+	warmup_fraction: float = 0.2
+
+
+@dataclass
+class OptConfig:
+	ebm: AdamWConfig = field(default_factory=AdamWConfig)
+	gen: AdamWConfig = field(default_factory=AdamWConfig)
+	kan: AdamWConfig = field(default_factory=AdamWConfig)
+
+
+@dataclass
+class ImportanceConfig:
 	type: str = "residual"
-	finetune_start_fraction: float = 0.5
+	epochs: int = 100
+	optim: OptConfig = field(default_factory=OptConfig)
 
 
 @dataclass
@@ -14,7 +32,7 @@ class TrainingConfig:
 	epochs: int = 100
 	global_batch_size: int = 128
 	image_res: int = 32
-	importance_finetune: ResamplerConfig = field(default_factory=ResamplerConfig)
+	is_finetune: ImportanceConfig = field(default_factory=ImportanceConfig)
 
 
 @dataclass
@@ -42,20 +60,3 @@ class MetricsConfig:
 		18000,
 		20000,
 	)
-
-
-@dataclass
-class AdamWConfig:
-	lr_init: float = 0.0001
-	lr_end: float = 0.00002
-	weight_decay: float = 0.0001
-	beta1: float = 0.999
-	beta2: float = 0.9
-	warmup_fraction: float = 0.2
-
-
-@dataclass
-class OptConfig:
-	ebm: AdamWConfig = field(default_factory=AdamWConfig)
-	gen: AdamWConfig = field(default_factory=AdamWConfig)
-	kan: AdamWConfig = field(default_factory=AdamWConfig)
