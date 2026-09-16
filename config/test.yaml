@@ -49,6 +49,7 @@ model:
     annealing_cycle: 0
     powerlaw_start: 6
     powerlaw_end: 6
+    use_gaussleg: True
 
 optim:
   gen:

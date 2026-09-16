@@ -20,6 +20,7 @@ class ThermoConfig:
 	annealing_cycle: int = 0
 	powerlaw_start: int = 6
 	powerlaw_end: int = 6
+	use_gaussleg: bool = True
 
 
 @dataclass

@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 from flax import nnx
+from numpy.polynomial.legendre import leggauss
 
 from ..config import ThermoConfig, ULAConfig
 from .base import neuralEBM
@@ -26,16 +27,25 @@ class Thermo:
 		"""Init temperature power law schedule and population sampling"""
 		num_temps = config.num_temps
 		self.num_temps = num_temps if (num_temps % 2 == 0) else num_temps - 1
-		self.cycles = config.annealing_cycle
-		self.p_start = config.powerlaw_start
-		self.p_end = config.powerlaw_end
-		self.temps = nnx.Variable(self._adapt_temps())
+		self.posterior_sampler = ula_sampler(mcmc_config)
+
+		# Dynamic trapezium rule or static Gauss-Legendre
+		self.gl = config.use_gaussleg
+		if self.gl:
+			nodes, weights = leggauss(self.num_temps)
+			self.temps, self.w_t = (
+				jnp.array(0.5 * nodes + 0.5),
+				jnp.array(0.5 * weights),
+			)
+		else:
+			self.cycles = config.annealing_cycle
+			self.p_start = config.powerlaw_start
+			self.p_end = config.powerlaw_end
+			self.temps = nnx.Variable(self._adapt_temps())
 
 		# DEO exchange
 		self.i_pairs = build_pairs(self.num_temps, 0)
 		self.j_pairs = build_pairs(self.num_temps, 1)
-
-		self.posterior_sampler = ula_sampler(mcmc_config)
 
 	def thermo_ll(self, x: jax.Array, z_t: jax.Array) -> jax.Array:
 		"""Flatten -> unflatten llhood (vmap breaks batchstat mutation in jit)"""
@@ -53,7 +63,8 @@ class Thermo:
 
 	def adapt_temps(self, train_idx: int, total_updates: int) -> None:
 		self.eval()
-		self.temps[...] = self._adapt_temps(train_idx / total_updates)
+		if not self.gl:
+			self.temps[...] = self._adapt_temps(train_idx / total_updates)
 
 	def replica_xchange(
 		self,
@@ -106,6 +117,14 @@ class Thermo:
 		self.eval()
 		return self._sample_posterior(key, z, x)
 
+	def trapz_int(self, expectations: jax.Array) -> jax.Array:
+		delta_t = self.temps[1:] - self.temps[:-1]
+		trapz = delta_t * (expectations[1:] + expectations[:-1])
+		return -0.5 * trapz.sum()
+
+	def gauss_int(self, expectations: jax.Array) -> jax.Array:
+		return -(self.w_t * expectations).sum()
+
 	def loss(self, x: jax.Array, z_thermo: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""
 		Thermodynamic integration with trapezoidal rule
@@ -117,9 +136,10 @@ class Thermo:
 		contrastive_div = self.ebm.loss(z_post, z_prior) / num_samples
 
 		expectations = self.thermo_ll(x, z_thermo).mean(axis=1)
-		delta_t = self.temps[1:] - self.temps[:-1]
-		trapz = delta_t * (expectations[1:] + expectations[:-1])
-		return -0.5 * trapz.sum() + contrastive_div
+		trapz = (
+			self.gauss_int(expectations) if self.gl else self.trapz_int(expectations)
+		)
+		return trapz + contrastive_div
 
 
 class thermoEBM(Thermo, neuralEBM):
