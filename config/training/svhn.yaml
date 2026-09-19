@@ -1,28 +1,28 @@
 dataset: svhn_cropped
-epochs: 100
-global_batch_size: 32
+epochs: 200
+global_batch_size: 64
 image_res: 32
 is_finetune:
   type: residual
-  epochs: 0
+  epochs: 100
   optim:
     gen:
-      lr_init: 1e-4
-      lr_end: 1e-5
+      lr_init: 1e-5
+      lr_end: 2e-5
       weight_decay: 1e-4
       beta1: 0.999
       beta2: 0.9
       warmup_fraction: 0.05
     ebm:
-      lr_init: 2e-5
-      lr_end: 2e-6
+      lr_init: 2e-6
+      lr_end: 5e-7
       weight_decay: 1e-5
       beta1: 0.999
       beta2: 0.9
       warmup_fraction: 0.05
     kaem:
-      lr_init: 2e-5
-      lr_end: 2e-6
+      lr_init: 2e-6
+      lr_end: 4e-7
       weight_decay: 1e-5
       beta1: 0.999
       beta2: 0.9

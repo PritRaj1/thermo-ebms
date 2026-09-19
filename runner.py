@@ -1,7 +1,7 @@
 import subprocess
 
 # MODELS = ["mle_ebm", "mle_kaem", "thermo_ebm", "thermo_kaem"]
-MODELS = ["thermo_kaem", "mle_kaem"]
+MODELS = ["mle_kaem"]
 DATASETS = ["cifar10", "svhn", "celeba"]
 
 
