@@ -21,10 +21,11 @@ class ImportanceTuner(nnx.Module):
 
 	def logllhood(self, model: nnx.Module, z: jax.Array, x: jax.Array) -> jax.Array:
 		x_pred = model.gen(z)
-		return jnp.sum(
+		se = jnp.sum(
 			(x[:, None, ...] - x_pred[None, :, ...]) ** 2,
 			axis=tuple(range(2, x.ndim + 1)),
 		)
+		return -se / (2 * model.gen.sigma**2)
 
 	@nnx.jit
 	def batch_resample(

@@ -1,6 +1,6 @@
 dataset: svhn_cropped
 epochs: 200
-global_batch_size: 64
+global_batch_size: 32
 image_res: 32
 is_finetune:
   type: residual
