@@ -20,6 +20,19 @@ def kernel(
 	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
+# def kernel(
+#   z: jax.Array,
+#   translation: jax.Array,
+#   bandwidth: jax.Array,
+#   tau: jax.Array,
+# ) -> jax.Array:
+#   """Morelet Wavelet latent density"""
+#   z_scaled = (z - translation) / bandwidth
+#   real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
+#   envelope = jnp.exp(-(z_scaled**2) / 2)
+#   return jnp.sum(real * envelope, axis=1, keepdims=True)
+
+
 def expand_z(x: np.ndarray) -> jax.Array:
 	return jnp.expand_dims(jnp.array(x), axis=(1, 2, 3))
 

@@ -4,7 +4,7 @@ global_batch_size: 32
 image_res: 32
 is_finetune:
   type: residual
-  epochs: 100
+  epochs: 0
   optim:
     gen:
       lr_init: 1e-5
