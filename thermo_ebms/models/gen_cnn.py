@@ -57,14 +57,14 @@ class GEN(nnx.Module):
 		layers += [
 			deconv(z_dim, first),
 			bn(first.channels),
-			nnx.relu,
+			nnx.selu,
 		]
 
 		for prev, block in zip(config.blocks[:-1], config.blocks[1:]):
 			layers += [
 				deconv(prev.channels, block),
 				bn(block.channels),
-				nnx.relu,
+				nnx.selu,
 			]
 
 		last = config.blocks[-1]

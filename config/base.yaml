@@ -26,9 +26,9 @@ model:
 
   kaem:
     mixture: true
-    numquad: 200
+    numquad: 100
     p0_stddev: 1.0
-    numcentres: 20
+    numcentres: 8
     domain_update_freq: 100
     domain_update_coverage: 0.99
     mixture_regularization: 0.0001

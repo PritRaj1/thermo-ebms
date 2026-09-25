@@ -21,16 +21,16 @@ def kernel(
 
 
 # def kernel(
-#   z: jax.Array,
-#   translation: jax.Array,
-#   bandwidth: jax.Array,
-#   tau: jax.Array,
+# 	z: jax.Array,
+# 	translation: jax.Array,
+# 	bandwidth: jax.Array,
+# 	tau: jax.Array,
 # ) -> jax.Array:
-#   """Morelet Wavelet latent density"""
-#   z_scaled = (z - translation) / bandwidth
-#   real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
-#   envelope = jnp.exp(-(z_scaled**2) / 2)
-#   return jnp.sum(real * envelope, axis=1, keepdims=True)
+# 	"""Morelet Wavelet latent density"""
+# 	z_scaled = (z - translation) / bandwidth
+# 	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
+# 	envelope = jnp.exp(-(z_scaled**2) / 2)
+# 	return jnp.sum(real * envelope, axis=1, keepdims=True)
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -44,7 +44,7 @@ def vmap_component(function: Callable, x: jax.Array) -> jax.Array:
 class KAN(nnx.Module):
 	"""1D latent density function"""
 
-	init_domain: tuple[float, float] = (-12.0, 12.0)
+	init_domain: tuple[float, float] = (-5.0, 5.0)
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture
