@@ -32,7 +32,6 @@ class TrainingConfig:
 	epochs: int = 100
 	global_batch_size: int = 128
 	image_res: int = 32
-	is_finetune: ImportanceConfig = field(default_factory=ImportanceConfig)
 
 
 @dataclass

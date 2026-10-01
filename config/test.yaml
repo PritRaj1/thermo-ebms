@@ -74,37 +74,37 @@ optim:
     beta2: 0.9
     warmup_fraction: 0.05
 
+is_finetune:
+  type: residual
+  epochs: 5
+  optim:
+    gen:
+      lr_init: 1e-4
+      lr_end: 1e-5
+      weight_decay: 1e-4
+      beta1: 0.999
+      beta2: 0.9
+      warmup_fraction: 0.05
+    ebm:
+      lr_init: 2e-5
+      lr_end: 2e-6
+      weight_decay: 1e-5
+      beta1: 0.999
+      beta2: 0.9
+      warmup_fraction: 0.05
+    kaem:
+      lr_init: 2e-5
+      lr_end: 2e-6
+      weight_decay: 1e-5
+      beta1: 0.999
+      beta2: 0.9
+      warmup_fraction: 0.05
+
 training:
   epochs: 4
   global_batch_size: 32
   dataset: fake32
   image_res: 32
-  is_finetune:
-    type: residual
-    epochs: 5
-    optim:
-      gen:
-        lr_init: 1e-4
-        lr_end: 1e-5
-        weight_decay: 1e-4
-        beta1: 0.999
-        beta2: 0.9
-        warmup_fraction: 0.05
-      ebm:
-        lr_init: 2e-5
-        lr_end: 2e-6
-        weight_decay: 1e-5
-        beta1: 0.999
-        beta2: 0.9
-        warmup_fraction: 0.05
-      kaem:
-        lr_init: 2e-5
-        lr_end: 2e-6
-        weight_decay: 1e-5
-        beta1: 0.999
-        beta2: 0.9
-        warmup_fraction: 0.05
-
 
 logging:
   logdir: /tmp

@@ -1,32 +1,8 @@
 dataset: celeb_a
-epochs: 100
+epochs: 200
 global_batch_size: 32
 image_res: 128
-is_finetune:
-  type: residual
-  epochs: 0
-  optim:
-    gen:
-      lr_init: 1e-4
-      lr_end: 1e-5
-      weight_decay: 1e-4
-      beta1: 0.999
-      beta2: 0.9
-      warmup_fraction: 0.05
-    ebm:
-      lr_init: 2e-5
-      lr_end: 2e-6
-      weight_decay: 1e-5
-      beta1: 0.999
-      beta2: 0.9
-      warmup_fraction: 0.05
-    kaem:
-      lr_init: 2e-5
-      lr_end: 2e-6
-      weight_decay: 1e-5
-      beta1: 0.999
-      beta2: 0.9
-      warmup_fraction: 0.05
+
 
 model_overrides:
   gen:

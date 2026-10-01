@@ -107,11 +107,11 @@ class ebmTrainer:
 
 		# Finetune with importance sampling
 		self.importance = False
-		self.is_epochs = config.training.is_finetune.epochs
+		self.is_epochs = config.is_finetune.epochs
 		if self.is_epochs > 0:
-			self.tuner = ImportanceTuner(config.training.is_finetune.type)
+			self.tuner = ImportanceTuner(config.is_finetune.type)
 			self.is_tx = coupled_opt(
-				config.training.is_finetune.optim,
+				config.is_finetune.optim,
 				self.updates_per_epoch * self.is_epochs,
 			)
 

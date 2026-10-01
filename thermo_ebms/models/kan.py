@@ -44,7 +44,7 @@ def vmap_component(function: Callable, x: jax.Array) -> jax.Array:
 class KAN(nnx.Module):
 	"""1D latent density function"""
 
-	init_domain: tuple[float, float] = (-5.0, 5.0)
+	init_domain: tuple[float, float] = (-6.0, 6.0)
 
 	def __init__(self, config: KAEMConfig, P: int, rngs: nnx.Rngs):
 		self.mixture = config.mixture

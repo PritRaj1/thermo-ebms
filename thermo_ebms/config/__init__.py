@@ -4,6 +4,7 @@ from .model import KAEMConfig, ModelConfig, ThermoConfig
 from .networks import ConvBlock, EBMConfig, GENConfig, ULAConfig
 from .pipeline import (
 	AdamWConfig,
+	ImportanceConfig,
 	LoggingConfig,
 	MetricsConfig,
 	OptConfig,
@@ -19,6 +20,7 @@ class Config:
 	logging: LoggingConfig = field(default_factory=LoggingConfig)
 	unbiased_metrics: MetricsConfig = field(default_factory=MetricsConfig)
 	optim: OptConfig = field(default_factory=OptConfig)
+	is_finetune: ImportanceConfig = field(default_factory=ImportanceConfig)
 
 
 __all__ = [
