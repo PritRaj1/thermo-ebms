@@ -1,7 +1,7 @@
 base: kaem
 
 thermo:
-  num_temps: 20
+  num_temps: 10
   annealing_cycle: 0
   powerlaw_start: 6
   powerlaw_end: 1

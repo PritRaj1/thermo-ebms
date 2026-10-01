@@ -14,6 +14,7 @@ from jax.experimental.multihost_utils import sync_global_devices
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from omegaconf import OmegaConf
+from tqdm import tqdm
 
 from ..config import Config
 from ..models import ImportanceTuner, mleEBM, mleKAEM, thermoEBM, thermoKAEM
@@ -319,7 +320,12 @@ class ebmTrainer:
 		return key
 
 	def run(self, key: jax.Array) -> jax.Array:
-		for epoch in range(self.num_epochs):
+		for epoch in tqdm(
+			range(self.num_epochs),
+			desc="Training",
+			unit="epoch",
+			disable=not self.is_host0,
+		):
 			key = self.train_epoch(key, epoch)
 
 		if self.is_epochs > 0:
@@ -329,7 +335,12 @@ class ebmTrainer:
 					self.st.model, self.is_tx, wrt=nnx.Param
 				)
 
-			for epoch in range(self.is_epochs):
+			for epoch in tqdm(
+				range(self.is_epochs),
+				desc="Importance finetuning",
+				unit="epoch",
+				disable=not self.is_host0,
+			):
 				key = self.train_epoch(key, epoch + self.num_epochs)
 
 		self.writer.flush()
