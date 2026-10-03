@@ -54,7 +54,7 @@ class KAN(nnx.Module):
 		self.Q = (P - 1) // 2 if self.mixture else 2 * P + 1
 		self.P = P
 
-		# RBG init (starting +-3 std dev)
+		# RBF init (starting +-3 std dev)
 		nc = config.numcentres
 		centres = jnp.reshape(jnp.linspace(-3.0, 3.0, num=nc), (1, nc, 1, 1))
 		self.translation = nnx.Param(jnp.broadcast_to(centres, (1, nc, self.Q, self.P)))

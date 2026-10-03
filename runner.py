@@ -2,24 +2,36 @@ import subprocess
 
 # MODELS = ["mle_ebm", "mle_kaem", "thermo_ebm", "thermo_kaem"]
 MODELS = ["mle_kaem", "thermo_kaem"]
-DATASETS = ["cifar10", "svhn", "celeba"]
+DATASETS = ["celeba", "cifar10", "svhn"]
 
 
-def run(model, dataset):
+def train(model, dataset):
 	cmd = [
 		"python",
 		"main.py",
 		f"model={model}",
 		f"training={dataset}",
 	]
-	print("Running:", " ".join(cmd))
+	print("Training:", " ".join(cmd))
+	subprocess.run(cmd, check=True)
+
+
+def eval(model, dataset):
+	cmd = [
+		"python",
+		"eval.py",
+		"run",
+		f"runs/{model}_{dataset}",
+	]
+	print("Evaluating:", " ".join(cmd))
 	subprocess.run(cmd, check=True)
 
 
 def main():
 	for m in MODELS:
 		for d in DATASETS:
-			run(m, d)
+			train(m, d)
+			eval(m, d)
 
 
 if __name__ == "__main__":
