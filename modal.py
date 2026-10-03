@@ -20,7 +20,7 @@ def train(model: str, dataset: str):
 	import subprocess
 	import sys
 
-	cmd = [
+	train_cmd = [
 		"torchrun",
 		"--nproc_per_node=2",
 		"main.py",
@@ -28,8 +28,19 @@ def train(model: str, dataset: str):
 		f"training={dataset}",
 	]
 
-	print("→", " ".join(cmd))
-	subprocess.run(cmd, check=True, stdout=sys.stdout, stderr=sys.stderr)
+	print("→", " ".join(train_cmd))
+	subprocess.run(train_cmd, check=True, stdout=sys.stdout, stderr=sys.stderr)
+
+	eval_cmd = [
+		"torchrun",
+		"--nproc_per_node=2",
+		"eval.py",
+		"run",
+		f"runs/{model}_{dataset}",
+	]
+
+	print("→", " ".join(eval_cmd))
+	subprocess.run(eval_cmd, check=True, stdout=sys.stdout, stderr=sys.stderr)
 
 
 @app.local_entrypoint()
