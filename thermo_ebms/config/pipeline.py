@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 @dataclass
 class AdamWConfig:
 	lr_init: float = 0.0001
-	lr_end: float = 0.00002
-	weight_decay: float = 0.0001
+	lr_end: float = 0.0001
+	weight_decay: float = 0.0
 	beta1: float = 0.999
 	beta2: float = 0.9
-	warmup_fraction: float = 0.2
+	warmup_fraction: float = 0.0
 
 
 @dataclass
