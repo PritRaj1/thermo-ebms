@@ -4,7 +4,7 @@ defaults:
   - _self_
 
 model:
-  z_dim: 101
+  z_dim: 61
   seed: 0
 
   ebm:
@@ -26,7 +26,7 @@ model:
 
   kaem:
     mixture: true
-    numquad: 25
+    numquad: 100
     p0_stddev: 1.0
     numcentres: 8
     domain_update_freq: 100

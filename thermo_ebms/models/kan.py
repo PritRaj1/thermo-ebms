@@ -11,16 +11,13 @@ from ..config import KAEMConfig
 
 def kernel(
 	z: jax.Array,
-	translation: jax.Array,
+	centres: jax.Array,
 	bandwidth: jax.Array,
 	tau: jax.Array,
-	k: jax.Array,
 ) -> jax.Array:
-	"""Morelet Wavelet latent density"""
-	z_scaled = (z - translation) / bandwidth
-	real = jnp.cos(tau * z_scaled) - jnp.exp(-(tau**2) / 2)
-	envelope = jnp.exp(-(z_scaled**2) / 2)
-	return jnp.sum(k * real * envelope, axis=1, keepdims=True)
+	"""Gaussian RBF latent density"""
+	z_scaled = (z - centres) / bandwidth
+	return jnp.sum(tau * jnp.exp(-(z_scaled**2) / 2), axis=1, keepdims=True)
 
 
 def expand_z(x: np.ndarray) -> jax.Array:
@@ -50,7 +47,6 @@ class KAN(nnx.Module):
 		self.translation = nnx.Param(jnp.broadcast_to(centres, (1, nc, self.Q, self.P)))
 		self.bandwidth = nnx.Param(rngs.normal((1, nc, self.Q, P)))
 		self.tau = nnx.Param(rngs.normal((1, nc, self.Q, P)))
-		self.k = nnx.Param(rngs.normal((1, nc, self.Q, P)))
 
 		# Mixture component to sample
 		self.reg = config.mixture_regularization
@@ -134,7 +130,7 @@ class KAN(nnx.Module):
 		self,
 		z: jax.Array,
 	) -> jax.Array:
-		return kernel(z, self.translation, self.bandwidth, self.tau, self.k)
+		return kernel(z, self.translation, self.bandwidth, self.tau)
 
 	def en(self, z: jax.Array) -> jax.Array:
 		f = self(z)
@@ -156,9 +152,8 @@ class KAN(nnx.Module):
 		translation = self.select_component(self.translation)
 		bandwidth = self.select_component(self.bandwidth)
 		tau = self.select_component(self.tau)
-		k = self.select_component(self.k)
 		z = self.select_component(z)
-		return kernel(z, translation, bandwidth, tau, k)
+		return kernel(z, translation, bandwidth, tau)
 
 	def loss(self, z_post: jax.Array, z_prior: jax.Array) -> jax.Array:
 		"""Constrastive divergence: E_{p_θ(z | x)}[f(z)] - E_{p_α(z)}[f(z)]"""

@@ -1,5 +1,5 @@
 dataset: celeb_a
-epochs: 200
+epochs: 100
 global_batch_size: 32
 image_res: 128
 

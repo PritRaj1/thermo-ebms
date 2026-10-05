@@ -1,5 +1,5 @@
 dataset: svhn_cropped
-epochs: 200
+epochs: 100
 global_batch_size: 32
 image_res: 32
 
